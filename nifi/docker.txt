@@ -1,0 +1,19 @@
+  nifi:
+    container_name: nifi-ingestion
+    build: ./nifi/nifi-ingestion/
+    hostname: nifi-ingestion
+    ports:
+      - '8443:8443'
+    networks:
+      - project2-network
+    tty: true
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=${SINGLE_USER_CREDENTIALS_USERNAME}
+      - SINGLE_USER_CREDENTIALS_PASSWORD=${SINGLE_USER_CREDENTIALS_PASSWORD}
+      - NIFI_SENSITIVE_PROPS_KEY=${NIFI_SENSITIVE_PROPS_KEY}
+      - NIFI_HOME=/opt/nifi/nifi-current
+    volumes:
+      - ./scripts/nifi:/opt/nifi/nifi-current/conf/nifi-ingestion/scripts
+      - ./nifi/nifi-ingestion/dataset:/opt/nifi/nifi-current/dataset
+    depends_on:
+      - hdfs-master

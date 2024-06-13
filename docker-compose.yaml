@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+
+  flink-jobmanager:
+    build:
+      context: ./flink/
+      dockerfile: Dockerfile-jobmanager
+    container_name: flink-jobmanager
+    hostname: jobmanager
+    ports:
+      - "8081:8081"  # Web UI port
+      - "6123:6123"  # RPC port
+    networks:
+      - project2-network
+    environment:
+      - FLINK_MODE=jobmanager
+
+  flink-taskmanager-1:
+    build:
+      context: ./flink/
+      dockerfile: Dockerfile-taskmanager
+    container_name: flink-taskmanager-1
+    hostname: taskmanager-1
+    networks:
+      - project2-network
+    depends_on:
+      - flink-jobmanager
+    environment:
+      - FLINK_MODE=taskmanager
+
+  flink-taskmanager-2:
+    build:
+      context: ./flink/
+      dockerfile: Dockerfile-taskmanager
+    container_name: flink-taskmanager-2
+    hostname: taskmanager-2
+    networks:
+      - project2-network
+    depends_on:
+      - flink-jobmanager
+    environment:
+      - FLINK_MODE=taskmanager
+
+networks:
+  project2-network:
+    driver: bridge
+    name: project2-network
