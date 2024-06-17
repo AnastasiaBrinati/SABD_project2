@@ -1,9 +1,0 @@
-pandas==2.2.2
-loguru==0.7.2
-pyspark==3.5.1
-pycryptodome==3.20.0
-b2sdk===2.3.0
-nipyapi===0.20.0
-python-dotenv===1.0.1
-redis===5.0.4
-matplotlib===3.9.0

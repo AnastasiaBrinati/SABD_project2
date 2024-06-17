@@ -2,45 +2,66 @@ version: '3.8'
 
 services:
 
-  flink-jobmanager:
-    build:
-      context: ./flink/
-      dockerfile: Dockerfile-jobmanager
-    container_name: flink-jobmanager
-    hostname: jobmanager
+
+  zookeeper:
+    container_name: zookeeper
+    image: 'bitnami/zookeeper:latest'
     ports:
-      - "8081:8081"  # Web UI port
-      - "6123:6123"  # RPC port
-    networks:
-      - project2-network
+      - '2181:2181'
     environment:
-      - FLINK_MODE=jobmanager
+      - ALLOW_ANONYMOUS_LOGIN=yes
 
-  flink-taskmanager-1:
-    build:
-      context: ./flink/
-      dockerfile: Dockerfile-taskmanager
-    container_name: flink-taskmanager-1
-    hostname: taskmanager-1
-    networks:
-      - project2-network
-    depends_on:
-      - flink-jobmanager
+  kafka:
+    container_name: kafka
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:9092"
     environment:
-      - FLINK_MODE=taskmanager
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
-  flink-taskmanager-2:
-    build:
-      context: ./flink/
-      dockerfile: Dockerfile-taskmanager
-    container_name: flink-taskmanager-2
-    hostname: taskmanager-2
-    networks:
-      - project2-network
-    depends_on:
-      - flink-jobmanager
+  nifi:
+    container_name: nifi
+    build: ./nifi/
+    ports:
+      - "8443:8443"
+    tty: true
     environment:
-      - FLINK_MODE=taskmanager
+      - SINGLE_USER_CREDENTIALS_USERNAME=${SINGLE_USER_CREDENTIALS_USERNAME}
+      - SINGLE_USER_CREDENTIALS_PASSWORD=${SINGLE_USER_CREDENTIALS_PASSWORD}
+      - NIFI_SENSITIVE_PROPS_KEY=${NIFI_SENSITIVE_PROPS_KEY}
+      - NIFI_HOME=/opt/nifi/nifi-current
+    networks:
+          - project2-network
+
+#  flink-jobmanager:
+#    build:
+#      context: ./flink/
+#      dockerfile: flink/jobmanager.dockerfile
+#    container_name: flink-jobmanager
+#    hostname: jobmanager
+#    ports:
+#      - "8081:8081"  # Web UI port
+#      - "6123:6123"  # RPC port
+#    networks:
+#      - project2-network
+#    environment:
+#      - FLINK_MODE=jobmanager
+
+#  flink-taskmanager:
+#    build:
+#      context: ./flink/
+#      dockerfile: flink/taskmanager.dockerfile
+#    container_name: flink-taskmanager
+#    hostname: taskmanager
+#    networks:
+#      - project2-network
+#    depends_on:
+#      - flink-jobmanager
+#    environment:
+#      - FLINK_MODE=taskmanager
 
 networks:
   project2-network:

@@ -1,0 +1,6 @@
+,Timestamp,LogLevel,Service,Message,RequestID,User,ClientIP,TimeTaken
+0,2023-11-20T08:40:50.664842,WARNING,ServiceA,Performance Warnings,6743,User96,192.168.1.102,28ms
+1,2023-11-20T08:40:50.672154,DEBUG,ServiceA,File I/O,8684,User17,192.168.1.219,55ms
+2,2023-11-20T08:40:50.680263,WARNING,ServiceA,Performance Warnings,6265,User13,192.168.1.173,44ms
+3,2023-11-20T08:40:50.688973,ERROR,ServiceA,Critical Errors,5821,User1,192.168.1.185,72ms
+4,2023-11-20T08:40:50.697002,ERROR,ServiceB,Critical Errors,7272,User64,192.168.1.194,56ms
