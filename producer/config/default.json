@@ -2,5 +2,10 @@
   "nifi": {
     "host": "nifi",
     "port": 8443
+  },
+  "redis": {
+    "host": "redis",
+    "port": 6379,
+    "db": 0
   }
 }

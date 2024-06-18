@@ -2,7 +2,6 @@ version: '3.8'
 
 services:
 
-
   zookeeper:
     container_name: zookeeper
     image: 'bitnami/zookeeper:latest'
@@ -27,6 +26,8 @@ services:
     build: ./nifi/
     ports:
       - "8443:8443"
+      - "8081:8081"
+    hostname: nifi
     tty: true
     environment:
       - SINGLE_USER_CREDENTIALS_USERNAME=${SINGLE_USER_CREDENTIALS_USERNAME}

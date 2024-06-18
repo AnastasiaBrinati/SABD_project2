@@ -62,7 +62,7 @@ class NifiLogger(Logger):
         super().__init__(logger_name="NifiLogger\n")
 
     def nifi_connection_success(self):
-        self.log("Nifi connection has ben estabilished successfully..")
+        self.log("Nifi connection has ben established successfully..")
 
     def nifi_login_success(self):
         self.log("Nifi login successful..")

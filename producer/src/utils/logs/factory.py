@@ -1,4 +1,6 @@
-from .loggers import Logger, AppLogger, NifiLogger, SparkLogger, B2Logger
+from .loggers import AppLogger, NifiLogger, SparkLogger, B2Logger
+
+
 class LoggerFactory:
     _app_logger = None
     _spark_logger = None

@@ -22,6 +22,7 @@ class NifiApi:
     @staticmethod
     def init_api() -> NifiApi:
         endpoint = configfactory.ConfigFactory.config().nifi_endpoint
+        print(f"endpoint: {endpoint}")
 
         # Keep logs minimal
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -57,6 +58,5 @@ class NifiApi:
         return self
 
     def schedule_ingestion(self) -> None:
-        nipyapi.canvas.schedule_process_group(
-            process_group_id='root', scheduled=True)
+        nipyapi.canvas.schedule_process_group(process_group_id='root', scheduled=True)
         loggerfactory.LoggerFactory.nifi().log("Ingestion scheduled..")
