@@ -6,12 +6,19 @@
 import sys
 import csv
 
+import producer
+
 def read_csv(filename):
+    try:
+        producer.connect()
+    except Exception as e:
+        print(f"Error connecting to Nifi: {e}")
     try:
         with open(filename, 'r', newline='') as file_csv:
             file = csv.reader(file_csv)
             for row in file:
                 print(row)
+                producer.send_to_nifi(row)
     except FileNotFoundError:
         print(f"Error: file '{filename}' not found.")
     except Exception as e:

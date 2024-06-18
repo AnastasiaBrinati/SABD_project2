@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import urllib3
-from utils.config.factory import ConfigFactory
 import nipyapi.config
 import nipyapi.utils
 import nipyapi.security
 import nipyapi.canvas
-from utils.logging.factory import LoggerFactory
+
+from .logs import factory as loggerfactory
+from .conf import factory as configfactory
 
 
 class NifiError(Exception):
@@ -20,7 +21,7 @@ class NifiApi:
 
     @staticmethod
     def init_api() -> NifiApi:
-        endpoint = ConfigFactory.config().nifi_endpoint
+        endpoint = configfactory.ConfigFactory.config().nifi_endpoint
 
         # Keep logs minimal
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -40,7 +41,7 @@ class NifiApi:
         )
 
         if connected:
-            LoggerFactory.nifi().nifi_connection_success()
+            loggerfactory.LoggerFactory.nifi().nifi_connection_success()
         else:
             raise NifiError('Connection to Nifi failed..')
 
@@ -50,11 +51,12 @@ class NifiApi:
         login = nipyapi.security.service_login(
             service='nifi', username=username, password=password, bool_response=True)
         if login:
-            LoggerFactory.nifi().nifi_login_success()
+            loggerfactory.LoggerFactory.nifi().nifi_login_success()
         else:
             raise NifiError('Login failed..')
         return self
 
     def schedule_ingestion(self) -> None:
-        nipyapi.canvas.schedule_process_group(process_group_id='root', scheduled=True)
-        LoggerFactory.nifi().log("Ingestion scheduled..")
+        nipyapi.canvas.schedule_process_group(
+            process_group_id='root', scheduled=True)
+        loggerfactory.LoggerFactory.nifi().log("Ingestion scheduled..")

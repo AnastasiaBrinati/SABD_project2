@@ -1,16 +1,6 @@
 {
   "nifi": {
-    "host": "nifi-ingestion",
+    "host": "nifi",
     "port": 8443
-  },
-  "spark": {
-    "master": "spark-master",
-    "appName": "SparkAnalysisProject1",
-    "port": 7077
-  },
-  "redis": {
-    "host": "redis",
-    "port": 6379,
-    "db": 0
   }
 }
