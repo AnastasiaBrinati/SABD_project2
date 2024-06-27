@@ -12,7 +12,7 @@ def main():
 
     # Define Kafka source
     kafka_source = FlinkKafkaConsumer(
-        topics='input_topic',
+        topics='nifi_topic',
         deserialization_schema=SimpleStringSchema(),
         properties={'bootstrap.servers': 'localhost:9092', 'group.id': 'flink_consumer_group'}
     )

@@ -18,7 +18,7 @@ RUN pip3 install jproperties
 RUN pip3 install psquare
 RUN pip3 install tdigest
 
-COPY ./src/consumer.py  consumer.py
+COPY src/consumer.py  consumer.py
 
 # Esponi le porte necessarie per il JobManager
 EXPOSE 6123 8081

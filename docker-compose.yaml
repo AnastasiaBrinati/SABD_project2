@@ -9,9 +9,12 @@ services:
       - '2181:2181'
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - project2-network
 
   kafka:
     container_name: kafka
+    hostname: kafka
     image: bitnami/kafka:latest
     ports:
       - "9092:9092"
@@ -20,6 +23,8 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - project2-network
 
   nifi:
     container_name: nifi
