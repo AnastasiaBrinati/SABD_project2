@@ -26,7 +26,7 @@ services:
     build: ./nifi/
     ports:
       - "8443:8443"
-      - "8081:8081"
+      - "8082:8082"
     hostname: nifi
     tty: true
     environment:
@@ -35,34 +35,54 @@ services:
       - NIFI_SENSITIVE_PROPS_KEY=${NIFI_SENSITIVE_PROPS_KEY}
       - NIFI_HOME=/opt/nifi/nifi-current
     networks:
-          - project2-network
+      - project2-network
 
-#  flink-jobmanager:
-#    build:
-#      context: ./flink/
-#      dockerfile: flink/jobmanager.dockerfile
-#    container_name: flink-jobmanager
-#    hostname: jobmanager
-#    ports:
-#      - "8081:8081"  # Web UI port
-#      - "6123:6123"  # RPC port
-#    networks:
-#      - project2-network
-#    environment:
-#      - FLINK_MODE=jobmanager
+  flink-jobmanager:
+    #image: flink:latest
+    build:
+      context: ./flink/
+      dockerfile: jobmanager.dockerfile
+    container_name: flink-jobmanager
+    hostname: jobmanager
+    ports:
+      - "8081:8081"
+      - "6123:6123"
+    command: |
+      jobmanager
+    volumes:
+      - ../Results:/Results
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        metrics.reporters: prom
+    #    metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+    #        metrics.latency.interval: 1000
+    tty: true
+    networks:
+      - project2-network
 
-#  flink-taskmanager:
-#    build:
-#      context: ./flink/
-#      dockerfile: flink/taskmanager.dockerfile
-#    container_name: flink-taskmanager
-#    hostname: taskmanager
-#    networks:
-#      - project2-network
-#    depends_on:
-#      - flink-jobmanager
-#    environment:
-#      - FLINK_MODE=taskmanager
+  flink-taskmanager:
+    build:
+      context: ./flink/
+      dockerfile: taskmanager.dockerfile
+    container_name: flink-taskmanager
+    hostname: taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    volumes:
+      - ../Results:/Results
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 10
+        metrics.reporters: prom
+        metrics.latency.interval: 1000
+    tty: true
+    networks:
+      - project2-network
 
 networks:
   project2-network:
