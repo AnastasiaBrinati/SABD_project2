@@ -39,7 +39,16 @@ For further details of the script, execute:
 ```bash
 ./setup-architecture.sh --help
 ```
+### Running the Consumer
 
+Once the architecture has started, to run the consumer as a flink cluster architecture, follow these steps:
+
+1. Start the consumer container by running:
+
+   ```bash
+   ./consume.sh
+   ```
+   
 ### Running the Producer
 
 Once the architecture has started, to run the producer of the tuples, follow these steps:
