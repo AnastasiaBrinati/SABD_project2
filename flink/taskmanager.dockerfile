@@ -12,8 +12,11 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pip3 install apache-flink
 
 ## Adding kafka connector dependency
-RUN curl -o /KafkaConnectorDependencies.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
+RUN wget -P /opt/flink/lib/ https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/1.17.1/flink-sql-connector-kafka-1.17.1.jar
 
 RUN pip3 install jproperties
 RUN pip3 install psquare
 RUN pip3 install tdigest
+
+# Comando predefinito per avviare il taskmanager
+CMD ["taskmanager"]

@@ -1,5 +1,1 @@
-apache-flink
-jproperties
-psquare
-tdigest
-pyflink
+apache-flink==1.14.0
