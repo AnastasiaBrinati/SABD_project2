@@ -28,3 +28,5 @@ docker run -d --name taskmanager --network project2-network -v ./Results:/Result
   taskmanager
 
 echo "Flink JobManager and TaskManager containers are up and running."
+
+docker exec -t -i jobmanager bash
