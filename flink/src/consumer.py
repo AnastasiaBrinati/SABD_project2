@@ -1,58 +1,59 @@
+import json
+from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
-from pyflink.common.serialization import DeserializationSchema
-from pyflink.common.typeinfo import Types, RowTypeInfo
-from pyflink.table import Row
-import json
+from pyflink.datastream.functions import MapFunction
 
-class JsonArrayToRowDeserializationSchema(DeserializationSchema):
-    def __init__(self, type_info):
-        self.type_info = type_info
 
-    def deserialize(self, message):
-        # Parse the JSON array
-        json_array = json.loads(message)
-        # Ensure it is a list (array)
-        if isinstance(json_array, list):
-            # Convert the JSON array to a Flink Row
-            return Row(*json_array)
+class ParseJsonArrayFunction(MapFunction):
+    def map(self, value):
+        # Deserialize the JSON array string to a Python list
+        json_data = json.loads(value)
+        if isinstance(json_data, list):
+            # Convert list to tuple
+            return tuple(json_data)
         else:
             raise ValueError("Expected a JSON array")
 
-    def is_end_of_stream(self, next_element):
-        return False
 
-    def get_produced_type(self):
-        return self.type_info
+class PrintFunction(MapFunction):
+    def map(self, value):
+        print(f"Record received: {value}")
+        return value
 
-# Example JSON deserialization schema for the elements in the array
-row_type_info = RowTypeInfo(
-    [Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(),
-     Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING(), Types.STRING()]
-)
 
 def main():
     env = StreamExecutionEnvironment.get_execution_environment()
 
     env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
 
-    # Custom deserialization schema to handle JSON arrays
-    json_array_to_row_deserialization_schema = JsonArrayToRowDeserializationSchema(type_info=row_type_info)
-
     kafka_consumer = FlinkKafkaConsumer(
         topics='sabd',
-        deserialization_schema=json_array_to_row_deserialization_schema,
+        deserialization_schema=SimpleStringSchema(),
         properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers', 'security.protocol': 'PLAINTEXT'}
     )
 
     ds = env.add_source(kafka_consumer)
 
-    def print_func(record):
-        print(f"Record received: {record}")
+    # Parse the JSON array strings to tuples
+    parsed_stream = ds.map(ParseJsonArrayFunction(), output_type=Types.TUPLE([
+        Types.STRING(),  # '0'
+        Types.STRING(),  # '2023-11-20T08:40:50.664842'
+        Types.STRING(),  # 'WARNING'
+        Types.STRING(),  # 'ServiceA'
+        Types.STRING(),  # 'Performance Warnings'
+        Types.STRING(),  # '6743'
+        Types.STRING(),  # 'User96'
+        Types.STRING(),  # '192.168.1.102'
+        Types.STRING()   # '28ms'
+    ]))
 
-    ds.map(print_func).set_parallelism(1)
+    # Print the parsed tuples
+    parsed_stream.map(PrintFunction()).set_parallelism(1)
 
     env.execute("Flink Kafka Consumer Example")
+
 
 if __name__ == '__main__':
     main()
