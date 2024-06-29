@@ -32,7 +32,6 @@ To start the overall architecture run the script:
    ```bash
    ./setup-architecture.sh --start
    ```
-   ```
 
 For further details on the script, execute:
 
@@ -71,5 +70,5 @@ Once the architecture has started, to run the producer of the tuples, follow the
 2. Move into the src directory and start producing:
    
    ```bash
-   python producer.py ./data/dtaset_path.py
+   python producer.py ./data/dataset.csv
    ```
