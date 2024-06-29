@@ -70,5 +70,5 @@ Once the architecture has started, to run the producer of the tuples, follow the
 2. Move into the src directory and start producing:
    
    ```bash
-   python producer.py ./data/dataset.csv
+   python main.py ./data/dataset.csv
    ```
