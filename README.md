@@ -27,26 +27,34 @@ The dataset contains S.M.A.R.T monitoring data, extended with some attributes ca
 
 ### Starting the Overall Architecture
 
-To start the overall architecture run the script with the dataset path parameter:
+To start the overall architecture run the script:
 
    ```bash
    ./setup-architecture.sh --start
    ```
    ```
 
-For further details of the script, execute:
+For further details on the script, execute:
 
-```bash
-./setup-architecture.sh --help
-```
+   ```bash
+   ./setup-architecture.sh --help
+   ```
+
 ### Running the Consumer
 
-Once the architecture has started, to run the consumer as a flink cluster architecture, follow these steps:
+Once the architecture has started, to run the consumer (flink cluster consisting of one jobmanager and one taskamanager), follow these steps:
 
-1. Start the consumer container by running:
+1. Start the consumer containers by running:
 
    ```bash
    ./consume.sh
+   ```
+   This command will provide you with a shell into the client container.
+   
+2. Start consuming DA AGGIUNGERE IL FLAG [query1 | query2 | query3]:
+   
+   ```bash
+   python consumer.py
    ```
    
 ### Running the Producer
@@ -58,5 +66,10 @@ Once the architecture has started, to run the producer of the tuples, follow the
    ```bash
    ./produce.sh
    ```
-
    This command will provide you with a shell into the client container.
+
+2. Move into the src directory and start producing:
+   
+   ```bash
+   python producer.py ./data/dtaset_path.py
+   ```
