@@ -63,12 +63,12 @@ Once the architecture has started, to run the producer of the tuples, follow the
 1. Start the producer container by running:
 
    ```bash
-   ./produce.sh
+   ./produce.sh <dataset-path>
    ```
    This command will provide you with a shell into the client container.
 
-2. Move into the src directory and start producing:
+2. Check you are in the src directory and start producing:
    
    ```bash
-   python main.py ./data/dataset.csv
+   python main.py
    ```
