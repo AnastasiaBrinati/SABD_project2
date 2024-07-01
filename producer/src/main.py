@@ -3,10 +3,11 @@
 # simula gli arrivi delle tuple come stream
 # *****************************************
 
-import sys
 import csv
-
 import producer
+
+# Specifica il percorso del file CSV
+CSV_FILE_PATH = './data/file.csv'
 
 
 def read_csv(filename):
@@ -16,8 +17,8 @@ def read_csv(filename):
         print(f"Error connecting to Nifi: {e}")
     try:
         with open(filename, 'r', newline='') as file:
-            file = csv.reader(file)
-            for row in file:
+            reader = csv.reader(file)
+            for row in reader:
                 print(f"row: {row}")
                 producer.send_to_nifi(row)
     except FileNotFoundError:
@@ -27,8 +28,4 @@ def read_csv(filename):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python main.py nome_file_csv")
-    else:
-        file_csv = sys.argv[1]
-        read_csv(file_csv)
+    read_csv(CSV_FILE_PATH)
