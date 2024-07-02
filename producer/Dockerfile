@@ -11,6 +11,7 @@ COPY config/requirements.txt .
 COPY config/default.json config
 
 # Install dependencies
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Command to run the application

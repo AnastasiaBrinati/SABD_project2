@@ -38,15 +38,15 @@ def main():
 
     # Parse the JSON array strings to tuples
     parsed_stream = ds.map(ParseJsonArrayFunction(), output_type=Types.TUPLE([
+        Types.STRING(),  # '2023-04-01T00:00:00.000000'
+        Types.STRING(),  # 'AAH92V6H'
+        Types.STRING(),  # 'HGST HUH721212ALN604'
         Types.STRING(),  # '0'
-        Types.STRING(),  # '2023-11-20T08:40:50.664842'
-        Types.STRING(),  # 'WARNING'
-        Types.STRING(),  # 'ServiceA'
-        Types.STRING(),  # 'Performance Warnings'
-        Types.STRING(),  # '6743'
-        Types.STRING(),  # 'User96'
-        Types.STRING(),  # '192.168.1.102'
-        Types.STRING()   # '28ms'
+        Types.STRING(),  # '1122'
+        Types.STRING(),  # '0.0'
+        Types.STRING(),  # '0.0'
+        Types.STRING(),  # '0.0'
+        Types.STRING()   # '5.0'
     ]))
 
     # Print the parsed tuples
