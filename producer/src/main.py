@@ -7,25 +7,37 @@ import csv
 import producer
 
 # Specifica il percorso del file CSV
-CSV_FILE_PATH = './data/file.csv'
+CSV_FILE_PATH = './src/data/file.csv'
 
 
-def read_csv(filename):
+def start_production():
+    # try connecting to nifi
     try:
         producer.connect()
     except Exception as e:
         print(f"Error connecting to Nifi: {e}")
+
+    # read rows from csv:
     try:
-        with open(filename, 'r', newline='') as file:
+        with open(CSV_FILE_PATH, 'r', newline='') as file:
             reader = csv.reader(file)
             for row in reader:
+                # for debugging
                 print(f"row: {row}")
-                producer.send_to_nifi(row)
+
+                # send rows to nifi
+                try:
+                    producer.send_to_nifi(row)
+                except Exception as e:
+                    print(f"Error sending data to Nifi: {e}")
+
     except FileNotFoundError:
         print(f"Error: file '{filename}' not found.")
     except Exception as e:
         print(f"Error while reading file '{filename}': {e}")
 
 
+
+
 if __name__ == "__main__":
-    read_csv(CSV_FILE_PATH)
+    start_production()

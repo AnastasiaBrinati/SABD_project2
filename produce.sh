@@ -27,6 +27,6 @@ docker run -t -i -p 4040:4040 \
   --name=producer \
   --volume ./producer/src:/home/producer/src \
   --volume "$CSV_FILE":/home/producer/src/data/file.csv \
-  --workdir /home/producer/src \
+  --workdir /home/producer/ \
   --env-file ./producer/src/.env \
   producer
