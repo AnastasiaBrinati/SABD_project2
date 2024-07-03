@@ -6,7 +6,7 @@ from utils.nifi import NifiApi
 def send_to_nifi(row):
     url = 'http://nifi:' + os.getenv('LISTEN_HTTP_PROCESSOR_PORT') + '/contentListener'
     headers = {'Content-Type': 'application/json'}
-    payload = row  # Sending the CSV row as a JSON payload
+    payload = row  # Sending the CSV rows as a JSON payload
 
     print("Sending row to NiFi ... ")
     try:

@@ -2,8 +2,8 @@ from pyflink.common import Types, Time
 from pyflink.datastream import DataStream
 from pyflink.datastream.window import TumblingEventTimeWindows
 
-from flink.src.queries.functions import Query1AggregateFunction, Query2AggregateFunction, Query2ProcessWindowFunction
-from flink.src.queries.key_selectors import Query2KeySelector
+from .functions import Query1AggregateFunction, Query2AggregateFunction, Query2ProcessWindowFunction
+from .key_selectors import Query2KeySelector
 
 
 def query_1(ds: DataStream, window_size: Time):
@@ -29,3 +29,7 @@ def query_2(ds: DataStream, window_size: Time):
         window_function=Query2ProcessWindowFunction(),
         accumulator_type=Types.TUPLE([Types.INT(), Types.LIST(Types.TUPLE([Types.STRING(), Types.STRING()]))])
     )
+
+def query_3(ds: DataStream, window_size: Time):
+    return ds
+

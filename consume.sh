@@ -10,19 +10,19 @@ docker build -t flink-jobmanager-image -f ./consumer/jobmanager.dockerfile ./con
 docker build -t flink-taskmanager-image -f ./consumer/taskmanager.dockerfile ./consumer/
 
 # Run the JobManager container
-docker run -d --name jobmanager --network project2-network -p 8081:8081 -p 6123:6123 \
-  -v ./Results:/Results \
-  -v ./consumer/src:/src \
+docker run -d --name=jobmanager --network project2-network -p 8081:8081 -p 6123:6123 \
+  --volume ./Results:/Results \
+  --volume ./consumer/src:/src \
+  --workdir /opt/flink/src/ \
   -e "FLINK_PROPERTIES=jobmanager.rpc.address: jobmanager" \
   flink-jobmanager-image \
   jobmanager
 
 # Pause to allow JobManager to start
 echo "Waiting for JobManager to start..."
-sleep 20
 
 # Run the TaskManager container
-docker run -d --name taskmanager --network project2-network -v ./Results:/Results \
+docker run -d --name=taskmanager --network project2-network --volume ./Results:/Results \
   -e "FLINK_PROPERTIES=jobmanager.rpc.address: jobmanager" \
   flink-taskmanager-image \
   taskmanager

@@ -5,6 +5,9 @@
 
 import csv
 import producer
+from datetime import datetime
+import time
+
 
 # Specifica il percorso del file CSV
 CSV_FILE_PATH = './src/data/file.csv'
@@ -21,12 +24,29 @@ def start_production():
     try:
         with open(CSV_FILE_PATH, 'r', newline='') as file:
             reader = csv.reader(file)
+
+            # Save the first row as header
+            header = next(reader)
+
+            first_row = next(reader)
+            current_date = datetime.strptime(first_row[0][:10], "%Y-%m-%d").date()
+            producer.send_to_nifi(first_row)
+
             for row in reader:
                 # for debugging
-                print(f"row: {row}")
+                #print(f"row: {row[0][:10]}")
 
-                # send rows to nifi
+                timestamp = datetime.strptime(row[0][:10], "%Y-%m-%d").date()
+                year = timestamp.year
+                month = timestamp.month
+                day = timestamp.day
+
+                if timestamp > current_date:
+                    # fake waiting
+                    time.sleep(1000000000)
+                    current_date = timestamp
                 try:
+                    # send row to nifi
                     producer.send_to_nifi(row)
                 except Exception as e:
                     print(f"Error sending data to Nifi: {e}")
@@ -35,8 +55,6 @@ def start_production():
         print(f"Error: file '{filename}' not found.")
     except Exception as e:
         print(f"Error while reading file '{filename}': {e}")
-
-
 
 
 if __name__ == "__main__":
