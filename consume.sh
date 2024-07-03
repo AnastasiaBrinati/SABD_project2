@@ -6,13 +6,13 @@ docker stop jobmanager
 docker rm jobmanager
 
 # Build the Docker images
-docker build -t flink-jobmanager-image -f ./flink/jobmanager.dockerfile ./flink/
-docker build -t flink-taskmanager-image -f ./flink/taskmanager.dockerfile ./flink/
+docker build -t flink-jobmanager-image -f ./consumer/jobmanager.dockerfile ./consumer/
+docker build -t flink-taskmanager-image -f ./consumer/taskmanager.dockerfile ./consumer/
 
 # Run the JobManager container
 docker run -d --name jobmanager --network project2-network -p 8081:8081 -p 6123:6123 \
   -v ./Results:/Results \
-  -v ./flink/src:/src \
+  -v ./consumer/src:/src \
   -e "FLINK_PROPERTIES=jobmanager.rpc.address: jobmanager" \
   flink-jobmanager-image \
   jobmanager
