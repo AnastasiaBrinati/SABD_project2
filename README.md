@@ -50,10 +50,10 @@ Once the architecture has started, to run the consumer (flink cluster consisting
    ```
    This command will provide you with a shell into the client container.
    
-2. Start consuming DA AGGIUNGERE IL FLAG [query1 | query2 | query3]:
+2. Make sure you are in the opt/flink/src wordir and start consuming:
    
    ```bash
-   python consumer.py
+   python consumer.py [ q1 | q2 | q3 ] [ 1 | 3 | all ]
    ```
    
 ### Running the Producer
@@ -67,8 +67,8 @@ Once the architecture has started, to run the producer of the tuples, follow the
    ```
    This command will provide you with a shell into the client container.
 
-2. Check you are in the src directory and start producing:
+2. Start producing:
    
    ```bash
-   python main.py
+   python src/main.py
    ```
