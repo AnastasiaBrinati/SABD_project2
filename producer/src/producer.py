@@ -8,12 +8,9 @@ def send_to_nifi(row):
     headers = {'Content-Type': 'application/json'}
     payload = row  # Sending the CSV rows as a JSON payload
 
-    print("Sending row to NiFi ... ")
     try:
         response = requests.post(url, json=payload, headers=headers, verify=False)  # verify=False to ignore SSL warnings
-        if response.status_code == 200:
-            print(f"Successfully sent data to NiFi: {row}")
-        else:
+        if response.status_code != 200:
             print(f"Failed to send data to NiFi: {response.text}")
     except requests.exceptions.RequestException as e:
         print(f"Error sending data to NiFi: {e}")

@@ -56,13 +56,15 @@ def main(query, window):
     # Print the parsed tuples
     if query == 'q1':
         # Print the parsed tuples using the chosen print function
-        ds = query_1(parsed_stream, window)
+        res_ds = (parsed_stream.map(lambda i: (i[0], int(i[4]), i[25]))
+                  .filter(lambda i: 1000 <= i[1] <= 1200))
+        res_ds.map(PrintFunction()).set_parallelism(1)
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
-        parsed_stream.map(PrintFunction()).set_parallelism(1)
+        ds = query_2(parsed_stream, window)
     if query == 'q3':
         # Print the parsed tuples using the chosen print function
-        parsed_stream.map(PrintFunction()).set_parallelism(1)
+        ds = query_3(parsed_stream, window)
 
     env.execute("Flink Kafka Consumer Example")
 
@@ -76,7 +78,7 @@ if __name__ == '__main__':
     query = sys.argv[1]
     window_size = sys.argv[2]
 
-    if window_size != '1' and window_size != '3' and window_size != 'all':
+    if window_size != '1' and window_size != '3' and window_size != '0':
         print("Available windows: 1, 3, all")
         sys.exit(1)
 

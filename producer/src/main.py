@@ -30,6 +30,7 @@ def start_production():
 
             first_row = next(reader)
             current_date = datetime.strptime(first_row[0][:10], "%Y-%m-%d").date()
+            print("Starting to send rows")
             producer.send_to_nifi(first_row)
 
             for row in reader:
@@ -43,6 +44,7 @@ def start_production():
 
                 if timestamp > current_date:
                     # fake waiting
+                    print("finished one day events")
                     time.sleep(1000000000)
                     current_date = timestamp
                 try:
