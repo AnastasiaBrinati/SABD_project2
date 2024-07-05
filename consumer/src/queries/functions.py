@@ -2,7 +2,6 @@ from typing import Tuple, Iterable, Set
 
 from pyflink.datastream import AggregateFunction, ProcessWindowFunction
 
-
 class Query1AggregateFunction(AggregateFunction):
 
     def create_accumulator(self) -> Tuple[int, float, float]:
@@ -15,9 +14,11 @@ class Query1AggregateFunction(AggregateFunction):
     def add(self, value: Tuple[str, int, float], accumulator: Tuple[int, float, float]):
         (count, mean, M2) = accumulator
         count += 1
-        delta = value[2] - mean
+        print(f"value[2]: {value[2]}")
+        print(f"mean: {mean}")
+        delta = float(value[2]) - mean
         mean += delta / count
-        delta2 = value[2] - mean
+        delta2 = float(value[2]) - mean
         M2 += delta * delta2
         return count, mean, M2
 

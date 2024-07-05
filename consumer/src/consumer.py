@@ -1,11 +1,16 @@
 import json
 import sys
+from datetime import datetime
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 from pyflink.datastream.functions import MapFunction
+from pyflink.datastream.window import TumblingEventTimeWindows, Time
+from pyflink.common import WatermarkStrategy, time
+from pyflink.common.watermark_strategy import TimestampAssigner
 
+from queries.functions import Query1AggregateFunction
 from queries.queries import query_1, query_2, query_3
 
 
@@ -27,6 +32,12 @@ class PrintFunction(MapFunction):
         return value
 
 
+class MyTimestampAssigner(TimestampAssigner):
+    def extract_timestamp(self, element, record_timestamp):
+        print("element: " + element[2:28])
+        return datetime.strptime(element[2:28], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
+
+
 def main(query, window):
     env = StreamExecutionEnvironment.get_execution_environment()
 
@@ -38,27 +49,43 @@ def main(query, window):
         properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers', 'security.protocol': 'PLAINTEXT'}
     )
 
-    ds = env.add_source(kafka_consumer)
+    # Definizione della strategia di watermark
+    watermark_strategy = (WatermarkStrategy.for_bounded_out_of_orderness(time.Duration.of_seconds(10))
+                          .with_timestamp_assigner(MyTimestampAssigner()))
+    # for_bounded_out_of_orderness: Questa funzione imposta un ritardo massimo tollerabile di 10 secondi.
+    #                               Significa che Flink accetta eventi che arrivano con un massimo di 10 secondi
+    #                               di ritardo rispetto all'evento più recente già processato
+    # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi sul campo timestamp degli eventi stessi
+
+    ds = env.add_source(kafka_consumer).assign_timestamps_and_watermarks(watermark_strategy)
 
     # Parse the JSON array strings to tuples
     parsed_stream = ds.map(ParseJsonArrayFunction(), output_type=Types.TUPLE([
         Types.STRING(),  # '2023-04-01T00:00:00.000000'
         Types.STRING(),  # 'AAH92V6H'
         Types.STRING(),  # 'HGST HUH721212ALN604'
-        Types.STRING(),  # '0'
-        Types.STRING(),  # '1122'
-        Types.STRING(),  # '0.0'
-        Types.STRING(),  # '0.0'
-        Types.STRING(),  # '0.0'
-        Types.STRING()  # '5.0'
+        Types.INT(),  # '0'
+        Types.INT(),  # '1122'
+        Types.FLOAT(),  # '0.0'
+        Types.FLOAT(),  # '0.0'
+        Types.FLOAT(),  # '0.0'
+        Types.FLOAT()  # '5.0'
     ]))
 
     # Print the parsed tuples
     if query == 'q1':
         # Print the parsed tuples using the chosen print function
-        res_ds = (parsed_stream.map(lambda i: (i[0], int(i[4]), i[25]))
+        filtered_stream = (parsed_stream.map(lambda i: (i[0], int(i[4]), i[25]))
                   .filter(lambda i: 1000 <= i[1] <= 1200))
-        res_ds.map(PrintFunction()).set_parallelism(1)
+
+        if __name__ == '__main__':
+            windowed_stream = filtered_stream.key_by(lambda i: i[0]).window(TumblingEventTimeWindows.of(Time.days(window))).aggregate(
+                Query1AggregateFunction(),
+                accumulator_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()]),
+                output_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()])
+            )
+        #res_ds = windowed_stream.apply(aggregate_statistics, output_type=Types.ROW([Types.SQL_TIMESTAMP(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+        windowed_stream.map(PrintFunction()).set_parallelism(1)
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
         ds = query_2(parsed_stream, window)
