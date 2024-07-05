@@ -1,10 +1,11 @@
 import json
 import sys
 from datetime import datetime
-from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common.serialization import SimpleStringSchema, Encoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
+from pyflink.datastream.connectors import StreamingFileSink
 from pyflink.datastream.functions import MapFunction
 from pyflink.datastream.window import TumblingEventTimeWindows, Time
 from pyflink.common import WatermarkStrategy, time
@@ -34,8 +35,9 @@ class PrintFunction(MapFunction):
 
 class MyTimestampAssigner(TimestampAssigner):
     def extract_timestamp(self, element, record_timestamp):
-        print("element: " + element[2:28])
-        return datetime.strptime(element[2:28], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
+        ts = datetime.strptime(element[2:28], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
+        print(f"timestamp: {ts}")
+        return ts
 
 
 def main(query, window):
@@ -78,20 +80,30 @@ def main(query, window):
         filtered_stream = (parsed_stream.map(lambda i: (i[0], int(i[4]), i[25]))
                   .filter(lambda i: 1000 <= i[1] <= 1200))
 
-        if __name__ == '__main__':
-            windowed_stream = filtered_stream.key_by(lambda i: i[0]).window(TumblingEventTimeWindows.of(Time.days(window))).aggregate(
+        windowed_stream = filtered_stream.key_by(lambda i: i[0]).window(TumblingEventTimeWindows.of(Time.days(window))).aggregate(
                 Query1AggregateFunction(),
                 accumulator_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()]),
                 output_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()])
             )
-        #res_ds = windowed_stream.apply(aggregate_statistics, output_type=Types.ROW([Types.SQL_TIMESTAMP(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
-        windowed_stream.map(PrintFunction()).set_parallelism(1)
+
+        #windowed_stream.map(PrintFunction()).set_parallelism(1)
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
         ds = query_2(parsed_stream, window)
     if query == 'q3':
         # Print the parsed tuples using the chosen print function
         ds = query_3(parsed_stream, window)
+
+    '''
+    # Define the sink to write to a CSV file
+    csv_sink = StreamingFileSink.for_row_format(
+        "./Results/"+query+".csv",
+        Encoder.simple_string_encoder()
+    ).build()
+    
+    # Add the sink to the filtered stream
+    windowed_stream.add_sink(csv_sink)
+    '''
 
     env.execute("Flink Kafka Consumer Example")
 
