@@ -2,17 +2,36 @@ import json
 import sys
 from datetime import datetime
 
-from pyflink.common import WatermarkStrategy, Duration
+from pyflink.common import WatermarkStrategy, Duration, time
+from pyflink.datastream.window import TumblingEventTimeWindows, Time
 from pyflink.common.serialization import SimpleStringSchema
+from pyflink.datastream.connectors import FileSink
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner
-from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream import StreamExecutionEnvironment, SinkFunction
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, KafkaSource, KafkaOffsetsInitializer
 from pyflink.datastream.functions import MapFunction
+from pyflink.common.serialization import Encoder
 
-from queries.functions import output_tag
+from queries.functions import output_tag, Query1AggregateFunction
 from queries.queries import query_1, query_2, query_3
 
+
+# Custom Sink Function to write to a single CSV file
+class CsvSinkFunction(SinkFunction):
+    def __init__(self, file_path):
+        self.file_path = file_path
+
+    def open(self, parameters):
+        self.file = open(self.file_path, 'a')  # Open file in append mode
+
+    def invoke(self, value, context):
+        with open(self.file_path, 'a') as f:
+            f.write(value + "\n")
+
+    def close(self):
+        if self.file:
+            self.file.close()
 
 class ParseJsonArrayFunction(MapFunction):
     def map(self, value):
@@ -36,45 +55,33 @@ class PrintFunction(MapFunction):
 
 class MyTimestampAssigner(TimestampAssigner):
     def extract_timestamp(self, element, record_timestamp) -> int:
-        ts = datetime.strptime(element[2:28], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
-        return int(ts)
+        #print(f"element: {element}")
+        ts = datetime.strptime(element[0], "%Y-%m-%dT%H:%M:%S.%f").timestamp()
+        #print(int(ts))
+        return int(ts) * 1000
 
 
 def main(query, window):
     global res, side_output_stream
     env = StreamExecutionEnvironment.get_execution_environment()
-
+    env.set_parallelism(1)
     env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
 
-    # kafka_consumer = FlinkKafkaConsumer(topics='sabd', deserialization_schema=SimpleStringSchema(),
-    #                                    properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers',
-    #                                                'security.protocol': 'PLAINTEXT'})
+    kafka_consumer = FlinkKafkaConsumer(
+        topics='sabd',
+        deserialization_schema=SimpleStringSchema(),
+        properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers', 'security.protocol': 'PLAINTEXT'}
+    )
 
     # Definizione della strategia di watermark
-    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(
-        Duration.of_seconds(10)
-    ).with_timestamp_assigner(MyTimestampAssigner()).with_idleness(Duration.of_seconds(2))
+    watermark_strategy = (WatermarkStrategy.for_monotonous_timestamps()
+                          .with_timestamp_assigner(MyTimestampAssigner()))
     # for_bounded_out_of_orderness: Questa funzione imposta un ritardo massimo tollerabile di 10 secondi.
     #                               Significa che Flink accetta eventi che arrivano con un massimo di 10 secondi
     #                               di ritardo rispetto all'evento più recente già processato
-    # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi
-    #                           sul campo timestamp degli eventi stessi
+    # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi sul campo timestamp degli eventi stessi
 
-    # ds = env.from_source(kafka_consumer).assign_timestamps_and_watermarks(watermark_strategy)
-
-    kafka_source = (KafkaSource.builder()
-                    .set_bootstrap_servers("kafka:9092")
-                    .set_topics("sabd")
-                    .set_group_id("sabd_consumers")
-                    .set_starting_offsets(KafkaOffsetsInitializer.earliest())
-                    .set_value_only_deserializer(SimpleStringSchema())
-                    .build())
-
-    ds = env.from_source(
-        source=kafka_source,
-        watermark_strategy=watermark_strategy,
-        source_name="kafka source"
-    )
+    ds = env.add_source(kafka_consumer)
 
     # Parse the JSON array strings to tuples
     parsed_stream = ds.map(ParseJsonArrayFunction(),
@@ -87,10 +94,27 @@ def main(query, window):
                                                     Types.FLOAT()  # '0.0'
                                                     ]))
 
+    #watermarked_stream = parsed_stream.assign_timestamps_and_watermarks(watermark_strategy)
+
     # Print the parsed tuples
     if query == 'q1':
-        res = query_1(parsed_stream)
-        side_output_stream = parsed_stream.get_side_output(output_tag)
+        # Filtered stream before windows
+        filtered_stream = (parsed_stream
+                           .map(lambda i: (i[0], i[4], i[6]), output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.FLOAT()]))
+                           .assign_timestamps_and_watermarks(watermark_strategy)
+                           .filter(lambda x: x[1] > 3000)
+                           .key_by(lambda i: i[1], key_type=Types.INT()))
+
+
+        # Apply a tumbling window of 1 minute for temperature aggregation
+        windowed_stream = (filtered_stream.window(TumblingEventTimeWindows.of(Time.days(window)))
+                            .aggregate(
+                                Query1AggregateFunction(),
+                                accumulator_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()]),
+                                output_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()])
+                            )
+        )
+
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
         res = query_2(parsed_stream, window)
@@ -98,20 +122,10 @@ def main(query, window):
         # Print the parsed tuples using the chosen print function
         ds = query_3(parsed_stream, window)
 
-    '''
-    # Define the sink to write to a CSV file
-    csv_sink = StreamingFileSink.for_row_format(
-        "./Results/"+query+".csv",
-        Encoder.simple_string_encoder()
-    ).build()
-    
-    # Add the sink to the filtered stream
-    windowed_stream.add_sink(csv_sink)
-    '''
 
-    print("Printing result to stdout. Use --output to specify output path.")
-    # res.print()
-    side_output_stream.print()
+    # Add the custom CSV sink to the transformed stream
+    #windowed_stream.add_sink(CsvSinkFunction("results.csv"))
+
 
     env.execute("Flink Kafka Consumer Example")
 

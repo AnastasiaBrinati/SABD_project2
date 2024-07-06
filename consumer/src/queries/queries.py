@@ -16,7 +16,7 @@ def query_1(ds: DataStream, days: int = 1):
     ).key_by(
         lambda i: i[1], key_type=Types.INT()
     ).window(
-        TumblingEventTimeWindows.of(Time.minutes(days))
+        TumblingEventTimeWindows.of(Time.days(days))
     ).aggregate(
         Query1AggregateFunction(),
         accumulator_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()]),

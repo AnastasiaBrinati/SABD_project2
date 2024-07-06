@@ -19,7 +19,7 @@ class Query1AggregateFunction(AggregateFunction):
     def add(self,
             value: Tuple[str, int, float],
             accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
-        print(value)
+        print(f"value: {value}")
         (count, mean, M2) = accumulator
         count += 1
         delta = float(value[2]) - mean
