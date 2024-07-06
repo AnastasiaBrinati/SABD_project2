@@ -76,6 +76,14 @@ services:
     networks:
       - project2-network
 
+  results_consumer:
+    container_name: results_consumer
+    build:
+      context: ./results/
+      dockerfile: Dockerfile
+    networks:
+      - project2-network
+
 networks:
   project2-network:
     driver: bridge
