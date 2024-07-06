@@ -19,20 +19,46 @@ services:
     ports:
       - "9092:9092"
     environment:
-      #KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_ZOOKEEPER_CONNECT= zookeeper:2181
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
       - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_BROKER_ID=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - project2-network
-    tty : true
+    tty: true
+
+  kafka2:
+    container_name: kafka2
+    hostname: kafka2
+    image: bitnami/kafka:latest
+    ports:
+      - "9093:9093"
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka2:9093
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9093
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_BROKER_ID=2
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=2
+      - KAFKA_MIN_INSYNC_REPLICAS=2
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - project2-network
+    tty: true
 
   nifi:
     container_name: nifi
