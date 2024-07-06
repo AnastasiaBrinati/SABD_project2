@@ -1,21 +1,27 @@
 from typing import Tuple, Iterable, Set
 
-from pyflink.datastream import AggregateFunction, ProcessWindowFunction
+from pyflink.common import Types
+from pyflink.datastream import AggregateFunction, ProcessWindowFunction, OutputTag
+
+output_tag = OutputTag("side-output", Types.STRING())
+
 
 class Query1AggregateFunction(AggregateFunction):
 
     def create_accumulator(self) -> Tuple[int, float, float]:
+        print("creating accumulator")
         return 0, 0.0, 0.0
 
     # For a new value new_value, compute the new count, new mean, the new M2.
     # mean accumulates the mean of the entire dataset
     # M2 aggregates the squared distance from the mean
     # count aggregates the number of samples seen so far
-    def add(self, value: Tuple[str, int, float], accumulator: Tuple[int, float, float]):
+    def add(self,
+            value: Tuple[str, int, float],
+            accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
+        print(value)
         (count, mean, M2) = accumulator
         count += 1
-        print(f"value[2]: {value[2]}")
-        print(f"mean: {mean}")
         delta = float(value[2]) - mean
         mean += delta / count
         delta2 = float(value[2]) - mean
@@ -24,16 +30,26 @@ class Query1AggregateFunction(AggregateFunction):
 
     # Retrieve count, mean and variance from the aggregate
     def get_result(self, accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
+        print("getting result")
         (count, mean, M2) = accumulator
-        if count < 2:
-            return int("nan"), float("nan"), float("nan")
-        else:
-            # (mean, variance, sample_variance) = (mean, M2 / count, M2 / (count - 1))
-            return count, mean, M2 / count
+        print(f"{count}, {mean}, {M2 / count}")
+        return count, mean, M2 / count
 
-    # Merges two accumulators (not used)
-    def merge(self, acc_a, acc_b):
-        return
+    # Merges two accumulators
+    def merge(self, acc_a: Tuple[int, float, float], acc_b: Tuple[int, float, float]) -> Tuple[int, float, float]:
+        print("merging")
+        return acc_a[0] + acc_b[0], (acc_a[1] + acc_b[1])/2, (acc_a[2] + acc_b[2])/2
+
+
+class Query1ProcessWindowFunction(ProcessWindowFunction):
+
+    def process(self,
+                key: Types.INT(),
+                context: 'ProcessWindowFunction.Context',
+                elements: Iterable[Tuple[int, float, float]]) -> Iterable[Tuple[int, float, float]]:
+        yield from elements
+
+        yield output_tag, str(elements)
 
 
 class Query2AggregateFunction(AggregateFunction):

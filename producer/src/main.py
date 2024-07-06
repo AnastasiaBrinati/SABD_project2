@@ -45,7 +45,7 @@ def start_production():
                 if timestamp > current_date:
                     # fake waiting
                     print("finished one day events")
-                    time.sleep(1000000000)
+                    time.sleep(5)
                     current_date = timestamp
                 try:
                     # send row to nifi

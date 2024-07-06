@@ -1,17 +1,16 @@
 import json
 import sys
 from datetime import datetime
-from pyflink.common.serialization import SimpleStringSchema, Encoder
-from pyflink.common.typeinfo import Types
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
-from pyflink.datastream.connectors import StreamingFileSink
-from pyflink.datastream.functions import MapFunction
-from pyflink.datastream.window import TumblingEventTimeWindows, Time
-from pyflink.common import WatermarkStrategy, time
-from pyflink.common.watermark_strategy import TimestampAssigner
 
-from queries.functions import Query1AggregateFunction
+from pyflink.common import WatermarkStrategy, Duration
+from pyflink.common.serialization import SimpleStringSchema
+from pyflink.common.typeinfo import Types
+from pyflink.common.watermark_strategy import TimestampAssigner
+from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, KafkaSource, KafkaOffsetsInitializer
+from pyflink.datastream.functions import MapFunction
+
+from queries.functions import output_tag
 from queries.queries import query_1, query_2, query_3
 
 
@@ -21,7 +20,9 @@ class ParseJsonArrayFunction(MapFunction):
         json_data = json.loads(value)
         if isinstance(json_data, list):
             # Convert list to tuple
-            return tuple(json_data)
+            return (json_data[0], json_data[1], json_data[2], int(json_data[3]), int(json_data[4]),
+                    float(0 if json_data[12] == '' else json_data[12]),
+                    float(0 if json_data[25] == '' else json_data[25]))
         else:
             raise ValueError("Expected a JSON array")
 
@@ -34,62 +35,65 @@ class PrintFunction(MapFunction):
 
 
 class MyTimestampAssigner(TimestampAssigner):
-    def extract_timestamp(self, element, record_timestamp):
+    def extract_timestamp(self, element, record_timestamp) -> int:
         ts = datetime.strptime(element[2:28], "%Y-%m-%dT%H:%M:%S.%f").timestamp() * 1000
-        print(f"timestamp: {ts}")
-        return ts
+        return int(ts)
 
 
 def main(query, window):
+    global res, side_output_stream
     env = StreamExecutionEnvironment.get_execution_environment()
 
     env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
 
-    kafka_consumer = FlinkKafkaConsumer(
-        topics='sabd',
-        deserialization_schema=SimpleStringSchema(),
-        properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers', 'security.protocol': 'PLAINTEXT'}
-    )
+    # kafka_consumer = FlinkKafkaConsumer(topics='sabd', deserialization_schema=SimpleStringSchema(),
+    #                                    properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers',
+    #                                                'security.protocol': 'PLAINTEXT'})
 
     # Definizione della strategia di watermark
-    watermark_strategy = (WatermarkStrategy.for_bounded_out_of_orderness(time.Duration.of_seconds(10))
-                          .with_timestamp_assigner(MyTimestampAssigner()))
+    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(
+        Duration.of_seconds(10)
+    ).with_timestamp_assigner(MyTimestampAssigner()).with_idleness(Duration.of_seconds(2))
     # for_bounded_out_of_orderness: Questa funzione imposta un ritardo massimo tollerabile di 10 secondi.
     #                               Significa che Flink accetta eventi che arrivano con un massimo di 10 secondi
     #                               di ritardo rispetto all'evento più recente già processato
-    # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi sul campo timestamp degli eventi stessi
+    # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi
+    #                           sul campo timestamp degli eventi stessi
 
-    ds = env.add_source(kafka_consumer).assign_timestamps_and_watermarks(watermark_strategy)
+    # ds = env.from_source(kafka_consumer).assign_timestamps_and_watermarks(watermark_strategy)
+
+    kafka_source = (KafkaSource.builder()
+                    .set_bootstrap_servers("kafka:9092")
+                    .set_topics("sabd")
+                    .set_group_id("sabd_consumers")
+                    .set_starting_offsets(KafkaOffsetsInitializer.earliest())
+                    .set_value_only_deserializer(SimpleStringSchema())
+                    .build())
+
+    ds = env.from_source(
+        source=kafka_source,
+        watermark_strategy=watermark_strategy,
+        source_name="kafka source"
+    )
 
     # Parse the JSON array strings to tuples
-    parsed_stream = ds.map(ParseJsonArrayFunction(), output_type=Types.TUPLE([
-        Types.STRING(),  # '2023-04-01T00:00:00.000000'
-        Types.STRING(),  # 'AAH92V6H'
-        Types.STRING(),  # 'HGST HUH721212ALN604'
-        Types.INT(),  # '0'
-        Types.INT(),  # '1122'
-        Types.FLOAT(),  # '0.0'
-        Types.FLOAT(),  # '0.0'
-        Types.FLOAT(),  # '0.0'
-        Types.FLOAT()  # '5.0'
-    ]))
+    parsed_stream = ds.map(ParseJsonArrayFunction(),
+                           output_type=Types.TUPLE([Types.STRING(),  # '2023-04-01T00:00:00.000000'
+                                                    Types.STRING(),  # 'AAH92V6H'
+                                                    Types.STRING(),  # 'HGST HUH721212ALN604'
+                                                    Types.INT(),  # '0'
+                                                    Types.INT(),  # '1122'
+                                                    Types.FLOAT(),  # '0.0'
+                                                    Types.FLOAT()  # '0.0'
+                                                    ]))
 
     # Print the parsed tuples
     if query == 'q1':
-        # Print the parsed tuples using the chosen print function
-        filtered_stream = (parsed_stream.map(lambda i: (i[0], int(i[4]), i[25]))
-                  .filter(lambda i: 1000 <= i[1] <= 1200))
-
-        windowed_stream = filtered_stream.key_by(lambda i: i[0]).window(TumblingEventTimeWindows.of(Time.days(window))).aggregate(
-                Query1AggregateFunction(),
-                accumulator_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()]),
-                output_type=Types.TUPLE([Types.INT(), Types.FLOAT(), Types.FLOAT()])
-            )
-
-        #windowed_stream.map(PrintFunction()).set_parallelism(1)
+        res = query_1(parsed_stream)
+        side_output_stream = parsed_stream.get_side_output(output_tag)
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
-        ds = query_2(parsed_stream, window)
+        res = query_2(parsed_stream, window)
     if query == 'q3':
         # Print the parsed tuples using the chosen print function
         ds = query_3(parsed_stream, window)
@@ -104,6 +108,10 @@ def main(query, window):
     # Add the sink to the filtered stream
     windowed_stream.add_sink(csv_sink)
     '''
+
+    print("Printing result to stdout. Use --output to specify output path.")
+    # res.print()
+    side_output_stream.print()
 
     env.execute("Flink Kafka Consumer Example")
 
