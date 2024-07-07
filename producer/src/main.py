@@ -29,35 +29,36 @@ def start_production():
             header = next(reader)
 
             first_row = next(reader)
+
             current_date = datetime.strptime(first_row[0][:10], "%Y-%m-%d").date()
             print("Starting to send rows")
             producer.send_to_nifi(first_row)
 
-            count = 0
-
             for row in reader:
+                print(row)
                 # for debugging
-                #print(f"row: {row[0][:10]}")
+                # print(f"row: {row[0][:10]}")
 
-                timestamp = datetime.strptime(row[0][:10], "%Y-%m-%d").date()
-                count += 1
+                try:
+                    timestamp = datetime.strptime(row[0][:10], "%Y-%m-%d").date()
+                except ValueError as e:
+                    print(f'ValueError: {e}')
+                    continue
                 year = timestamp.year
                 month = timestamp.month
                 day = timestamp.day
-
 
                 if timestamp > current_date:
                     # fake waiting
                     print("finished one day events")
                     time.sleep(5)
                     current_date = timestamp
-                    count = 0
                 try:
                     # send row to nifi
-                    if count < 100:
-                        producer.send_to_nifi(row)
+                    producer.send_to_nifi(row)
                 except Exception as e:
                     print(f"Error sending data to Nifi: {e}")
+                    continue
 
     except FileNotFoundError:
         print(f"Error: file '{filename}' not found.")
