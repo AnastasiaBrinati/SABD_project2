@@ -2,6 +2,7 @@ from typing import Tuple, Iterable, List
 
 from pyflink.common import Types
 from pyflink.datastream import AggregateFunction, ProcessWindowFunction, OutputTag
+from tdigest import TDigest
 
 output_tag = OutputTag("side-output", Types.STRING())
 
@@ -43,7 +44,7 @@ class Query1AggregateFunction(AggregateFunction):
 class Query1ProcessWindowFunction(ProcessWindowFunction):
 
     def process(self, key: Tuple[str, int], context: 'ProcessWindowFunction.Context',
-                elements: Iterable[Tuple[int, float, float]]) -> Iterable[Tuple[int, float, float]]:
+                elements: Iterable[Tuple[int, float, float]]) -> Iterable[Tuple[str, int, int, float, float]]:
         keyed_sorted_list = []
         for element in elements:
             keyed_sorted_list.append((key[0], key[1], element[0], element[1], element[2]))
@@ -149,7 +150,45 @@ class Query2SortingAggregationFunction(AggregateFunction):
 class Query2SortingProcessWindowFunction(ProcessWindowFunction):
     def process(self, key: str, context: 'ProcessWindowFunction.Context', elements: Iterable[Tuple[
         str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]]) -> \
-        Iterable[
-        Tuple[str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]
-    ]:
+            Iterable[
+                Tuple[
+                    str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]
+            ]:
         yield from elements
+
+
+class Query3AggregateFunction(AggregateFunction):
+    def create_accumulator(self) -> Tuple[int, object]:
+        """
+        Creates a list accumulator composed by:
+        - the minimum (int)
+        - the TDigest object
+        """
+        return 0, TDigest()
+
+    def add(self,
+            value,
+            accumulator: Tuple[int, object]) -> Tuple[int, object]:
+        pass
+
+    def get_result(self, accumulator):
+        pass
+
+    def merge(self, acc_a, acc_b):
+        pass
+
+
+class PowerOnHoursAggregateFunction(AggregateFunction):
+    def create_accumulator(self) -> int:
+        return 0
+
+    def add(self,
+            value,
+            accumulator: int) -> int:
+        return max(value, accumulator)
+
+    def get_result(self, accumulator):
+        return accumulator
+
+    def merge(self, acc_a, acc_b):
+        pass
