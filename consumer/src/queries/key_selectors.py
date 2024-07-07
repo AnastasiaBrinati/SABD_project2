@@ -5,7 +5,7 @@ from pyflink.datastream import KeySelector
 
 class CustomKeySelector(KeySelector):
     """
-    KeySelector class used to key by date and vault_id in query 2
+    KeySelector class used to key by timestamp and vault_id
     """
 
     def get_key(self, value) -> Tuple[str, int]:

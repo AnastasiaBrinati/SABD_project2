@@ -3,7 +3,8 @@ from pyflink.datastream import DataStream
 from pyflink.datastream.window import TumblingEventTimeWindows
 
 from .functions import Query1AggregateFunction, Query2AggregateFunction, Query2ProcessWindowFunction, \
-    Query2SortingAggregationFunction, Query2SortingProcessWindowFunction
+    Query2SortingAggregationFunction, Query2SortingProcessWindowFunction, TDigestAggregateFunction, \
+    TDigestProcessWindowFunction
 from .key_selectors import CustomKeySelector
 
 
@@ -62,10 +63,27 @@ def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) ->
 
 
 def query_3(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int):
-    # Maps ds to get (vault_id, serial_number, hours) tuples
-    hd_hours = ds.map(lambda i: (i[4], i[1], i[5])) \
-        .assign_timestamps_and_watermarks(watermark_strategy) \
-        .key_by(lambda i: i[1]) \
-        .reduce(lambda x, acc: (x[0], x[1], max(x[2], acc)))
+    """
+    Maps ds to (timestamp, vault_id, serial_number, hours) tuples. Then, key by serial number
+    and gets the total number of power-on hours (it a cumulative data, so max() is
+    used to get the total).
+    """
+    hd_hours = ds.assign_timestamps_and_watermarks(watermark_strategy) \
+        .map(lambda i: (i[0], i[4], i[1], i[5])) \
+        .filter(lambda i: 1090 <= i[1] <= 1120) \
+        .key_by(lambda i: i[2]) \
+        .window(TumblingEventTimeWindows.of(Time.days(days))) \
+        .reduce(lambda x, acc: (x[0] if x[0] < acc[0] else acc[0], x[1], x[2], max(x[3], acc[3])))
 
-    # hd_hours.
+    """
+    Now, keys by vault_id and aggregates values with t-digest method.
+    """
+    # Key by vault_id
+    return hd_hours.key_by(lambda i: i[1]) \
+        .window(TumblingEventTimeWindows.of(Time.days(days))) \
+        .aggregate(
+            TDigestAggregateFunction(),
+            window_function=TDigestProcessWindowFunction(),
+            # accumulator_type=Types.TUPLE([Types.INT(), Types.INT(), Types.])
+            output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(), Types.FLOAT(), Types.INT(), Types.INT()])
+        )

@@ -101,7 +101,7 @@ def main(query, window):
         res = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=window)
     if query == 'q3':
         # Print the parsed tuples using the chosen print function
-        ds = query_3(parsed_stream, window)
+        res = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=window)
 
 
     # Define the sink: writing to a CSV file

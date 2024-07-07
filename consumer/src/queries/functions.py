@@ -126,18 +126,16 @@ class Query2SortingAggregationFunction(AggregateFunction):
         template = ("", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "")
         accumulator.sort(key=lambda x: x[1], reverse=True)
         if len(accumulator) > 0:
-            return (
-                accumulator[0][0],
-                accumulator[0][1], accumulator[0][2], accumulator[1][1] if len(accumulator) > 1 else 0,
-                accumulator[1][2] if len(accumulator) > 1 else "", accumulator[2][1] if len(accumulator) > 2 else 0,
-                accumulator[2][2] if len(accumulator) > 2 else "", accumulator[3][1] if len(accumulator) > 3 else 0,
-                accumulator[3][2] if len(accumulator) > 3 else "", accumulator[4][1] if len(accumulator) > 4 else 0,
-                accumulator[4][2] if len(accumulator) > 4 else "", accumulator[5][1] if len(accumulator) > 5 else 0,
-                accumulator[5][2] if len(accumulator) > 5 else "", accumulator[6][1] if len(accumulator) > 6 else 0,
-                accumulator[6][2] if len(accumulator) > 6 else "", accumulator[7][1] if len(accumulator) > 7 else 0,
-                accumulator[7][2] if len(accumulator) > 7 else "", accumulator[8][1] if len(accumulator) > 8 else 0,
-                accumulator[8][2] if len(accumulator) > 8 else "", accumulator[9][1] if len(accumulator) > 9 else 0,
-                accumulator[9][2] if len(accumulator) > 9 else "")
+            return (accumulator[0][0], accumulator[0][1], accumulator[0][2],
+                    accumulator[1][1] if len(accumulator) > 1 else 0, accumulator[1][2] if len(accumulator) > 1 else "",
+                    accumulator[2][1] if len(accumulator) > 2 else 0, accumulator[2][2] if len(accumulator) > 2 else "",
+                    accumulator[3][1] if len(accumulator) > 3 else 0, accumulator[3][2] if len(accumulator) > 3 else "",
+                    accumulator[4][1] if len(accumulator) > 4 else 0, accumulator[4][2] if len(accumulator) > 4 else "",
+                    accumulator[5][1] if len(accumulator) > 5 else 0, accumulator[5][2] if len(accumulator) > 5 else "",
+                    accumulator[6][1] if len(accumulator) > 6 else 0, accumulator[6][2] if len(accumulator) > 6 else "",
+                    accumulator[7][1] if len(accumulator) > 7 else 0, accumulator[7][2] if len(accumulator) > 7 else "",
+                    accumulator[8][1] if len(accumulator) > 8 else 0, accumulator[8][2] if len(accumulator) > 8 else "",
+                    accumulator[9][1] if len(accumulator) > 9 else 0, accumulator[9][2] if len(accumulator) > 9 else "")
         else:
             return template
 
@@ -148,45 +146,56 @@ class Query2SortingAggregationFunction(AggregateFunction):
 class Query2SortingProcessWindowFunction(ProcessWindowFunction):
     def process(self, key: str, context: 'ProcessWindowFunction.Context', elements: Iterable[Tuple[
         str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]]) -> \
-            Iterable[
-                Tuple[
-                    str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]
-            ]:
+            Iterable[Tuple[
+                str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]]:
         yield from elements
 
 
-class Query3AggregateFunction(AggregateFunction):
-    def create_accumulator(self) -> Tuple[int, object]:
+class TDigestAggregateFunction(AggregateFunction):
+    def create_accumulator(self) -> Tuple[str, int, int, object, int]:
         """
         Creates a list accumulator composed by:
         - the minimum (int)
+        - the maximum (int)
         - the TDigest object
+        - the records count
         """
-        return 0, TDigest()
+        return '', 0, 0, TDigest(), 0
 
-    def add(self,
-            value,
-            accumulator: Tuple[int, object]) -> Tuple[int, object]:
-        pass
+    def add(self, value: Tuple[str, int, str, int], accumulator: Tuple[str, int, int, object, int]) -> Tuple[
+        str, int, int, object, int]:
+        """
+        Updates current TDigest and return min, max and TDigest object
 
-    def get_result(self, accumulator):
-        pass
+        New digest creation is due to casting-related issues
+        """
+        new_digest = TDigest() + accumulator[3]
+        new_digest.update(value[3])
+        min_ts = value[0] if accumulator[0] == '' else min(value[0], accumulator[0])
+        min_hours = value[3] if accumulator[1] == 0 else min(value[3], accumulator[1])
+        return min_ts, min_hours, max(value[3], accumulator[2]), new_digest, accumulator[4] + 1
 
-    def merge(self, acc_a, acc_b):
-        pass
+    def get_result(self, accumulator: Tuple[str, int, int, object, int]) -> Tuple[
+        str, int, float, float, float, int, int]:
+        print(f'Getting results from \t {accumulator}')
+        new_digest = TDigest() + accumulator[3]
+        return (
+            accumulator[0], accumulator[1], new_digest.percentile(25), new_digest.percentile(50),
+            new_digest.percentile(75),
+            accumulator[2], accumulator[4])
+
+    def merge(self, acc_a: Tuple[str, int, int, object, int], acc_b: Tuple[str, int, int, object, int]) -> Tuple[
+        str, int, int, object, int]:
+        new_digest = TDigest() + acc_a[3] + acc_b[3]
+        return min(acc_a[0], acc_b[0]), min(acc_a[1], acc_b[1]), max(acc_a[2], acc_b[2]), new_digest, acc_a[4] + acc_b[
+            4]
 
 
-class PowerOnHoursAggregateFunction(AggregateFunction):
-    def create_accumulator(self) -> int:
-        return 0
-
-    def add(self,
-            value,
-            accumulator: int) -> int:
-        return max(value, accumulator)
-
-    def get_result(self, accumulator):
-        return accumulator
-
-    def merge(self, acc_a, acc_b):
-        pass
+class TDigestProcessWindowFunction(ProcessWindowFunction):
+    def process(self, key: int, context: 'ProcessWindowFunction.Context',
+                elements: Iterable[Tuple[str, int, float, float, float, int, int]]) -> Iterable[
+        Tuple[str, int, int, float, float, float, int, int]]:
+        keyed_list = []
+        for e in elements:
+            keyed_list.append((e[0], key, e[1], e[2], e[3], e[4], e[5], e[6]))
+        yield from keyed_list
