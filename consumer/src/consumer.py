@@ -83,8 +83,8 @@ def main(query, window):
     if query == 'q1':
 
         serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
-            Types.ROW_NAMED(["count", "mean_s194", "stddev_s194"],
-                            [Types.INT(), Types.FLOAT(), Types.FLOAT()])
+            Types.ROW_NAMED(["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"],
+                            [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
         ).build()
 
         res = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=window)
@@ -92,8 +92,8 @@ def main(query, window):
         #'''
         mapped_data = res.map(
             func=lambda i: Row(i[0], i[1], i[2]),
-            output_type=Types.ROW_NAMED(["count", "mean_s194", "stddev_s194"],
-                                        [Types.INT(), Types.FLOAT(), Types.FLOAT()])
+            output_type=Types.ROW_NAMED(["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"],
+                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
         )
         #'''
     if query == 'q2':
