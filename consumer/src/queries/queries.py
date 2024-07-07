@@ -4,7 +4,7 @@ from pyflink.datastream.window import TumblingEventTimeWindows
 
 from .functions import Query1AggregateFunction, Query2AggregateFunction, Query2ProcessWindowFunction, \
     Query2SortingAggregationFunction, Query2SortingProcessWindowFunction, TDigestAggregateFunction, \
-    TDigestProcessWindowFunction
+    TDigestProcessWindowFunction, Query1ProcessWindowFunction
 from .key_selectors import CustomKeySelector
 
 
@@ -19,6 +19,7 @@ def query_1(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int = 1
         .key_by(CustomKeySelector()) \
         .window(TumblingEventTimeWindows.of(Time.days(days))) \
         .aggregate(Query1AggregateFunction(),
+                   window_function=Query1ProcessWindowFunction(),
                    accumulator_type=Types.TUPLE(
                        [Types.INT(), Types.FLOAT(), Types.FLOAT()]),
                    output_type=Types.TUPLE(
