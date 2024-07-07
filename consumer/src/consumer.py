@@ -57,7 +57,7 @@ class MyTimestampAssigner(TimestampAssigner):
 
 
 def main(query, window):
-    global res, side_output_stream
+    global side_output_stream, res
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(1)
     env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")

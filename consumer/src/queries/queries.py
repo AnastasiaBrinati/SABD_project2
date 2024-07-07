@@ -7,10 +7,10 @@ from .functions import Query1AggregateFunction, Query2AggregateFunction, Query2P
 from .key_selectors import CustomKeySelector
 
 
-def query_1(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int = 1):
+def query_1(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int = 1) -> DataStream:
     print("Entering query 1 execution")
     # Takes only required data for each dataset entry (timestamp, vault_id, temperature)
-    ds.map(
+    return ds.map(
         func=lambda i: (i[0], i[4], i[6]),
         output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.FLOAT()])
     ).assign_timestamps_and_watermarks(watermark_strategy) \
@@ -25,7 +25,7 @@ def query_1(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int = 1
                    )
 
 
-def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int):
+def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) -> DataStream:
     # Takes only required data (timestamp, vault_id, model, serial_number, failure_flag)
     aggregated = ds.map(
         func=lambda i: (i[0], i[4], i[2], i[1], i[3]),
@@ -60,5 +60,5 @@ def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int):
                                  Types.INT(), Types.STRING()])
     )
 
-def query_3(ds: DataStream, window_size: Time):
+def query_3(ds: DataStream, days: int):
     return ds
