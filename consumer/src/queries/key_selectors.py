@@ -3,7 +3,7 @@ from typing import Tuple
 from pyflink.datastream import KeySelector
 
 
-class Query2KeySelector(KeySelector):
+class CustomKeySelector(KeySelector):
     """
     KeySelector class used to key by date and vault_id in query 2
     """
