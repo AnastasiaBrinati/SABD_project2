@@ -82,20 +82,21 @@ def main(query, window):
     # Print the parsed tuples
     if query == 'q1':
 
+        result_columns = ["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"]
+
         serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
-            Types.ROW_NAMED(["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"],
+            Types.ROW_NAMED(result_columns,
                             [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
         ).build()
 
         res = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=window)
-        #mapped_data = res.map(lambda x: f"{x[0]},{x[1]},{x[2]}", output_type=Types.STRING())
-        #'''
+
         mapped_data = res.map(
-            func=lambda i: Row(i[0], i[1], i[2]),
-            output_type=Types.ROW_NAMED(["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"],
+            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
+            output_type=Types.ROW_NAMED(result_columns,
                                         [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
         )
-        #'''
+
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
         res = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=window)

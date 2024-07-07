@@ -49,7 +49,7 @@ def start_production():
                     count = 0
                 try:
                     # send row to nifi
-                    if count < 2000:
+                    if count < 200:
                         count += 1
                         print(str(count) + " " + str(row[0:2]))
                         producer.send_to_nifi(row)
