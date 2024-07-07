@@ -21,7 +21,7 @@ def query_1(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int = 1
                    accumulator_type=Types.TUPLE(
                        [Types.INT(), Types.FLOAT(), Types.FLOAT()]),
                    output_type=Types.TUPLE(
-                       [Types.INT(), Types.FLOAT(), Types.FLOAT()])
+                       [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
                    )
 
 
@@ -35,11 +35,11 @@ def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) ->
         .key_by(CustomKeySelector()) \
         .window(TumblingEventTimeWindows.of(Time.days(days))) \
         .aggregate(
-            Query2AggregateFunction(),
-            window_function=Query2ProcessWindowFunction(),
-            accumulator_type=Types.TUPLE([Types.INT(), Types.LIST(Types.TUPLE([Types.STRING(), Types.STRING()]))]),
-            output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.STRING()])
-            )
+        Query2AggregateFunction(),
+        window_function=Query2ProcessWindowFunction(),
+        accumulator_type=Types.TUPLE([Types.INT(), Types.LIST(Types.TUPLE([Types.STRING(), Types.STRING()]))]),
+        output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.STRING()])
+    )
     aggregated.print()
     return aggregated.key_by(lambda i: i[0]) \
         .window(TumblingEventTimeWindows.of(Time.days(days))) \
@@ -60,5 +60,12 @@ def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) ->
                                  Types.INT(), Types.STRING()])
     )
 
-def query_3(ds: DataStream, days: int):
-    return ds
+
+def query_3(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int):
+    # Maps ds to get (vault_id, serial_number, hours) tuples
+    hd_hours = ds.map(lambda i: (i[4], i[1], i[5])) \
+        .assign_timestamps_and_watermarks(watermark_strategy) \
+        .key_by(lambda i: i[1]) \
+        .reduce(lambda x, acc: (x[0], x[1], max(x[2], acc)))
+
+    # hd_hours.
