@@ -4,30 +4,14 @@ from datetime import datetime
 
 from pyflink.common import WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
-from pyflink.common.typeinfo import Types
+from pyflink.common import Row, Types
 from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.datastream import StreamExecutionEnvironment, SinkFunction
-from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
+from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
 from pyflink.datastream.functions import MapFunction
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
 
 from queries.queries import query_1, query_2, query_3
-
-
-# Custom Sink Function to write to a single CSV file
-class CsvSinkFunction(SinkFunction):
-    def __init__(self, file_path):
-        self.file_path = file_path
-
-    def open(self, parameters):
-        self.file = open(self.file_path, 'a')  # Open file in append mode
-
-    def invoke(self, value, context):
-        with open(self.file_path, 'a') as f:
-            f.write(value + "\n")
-
-    def close(self):
-        if self.file:
-            self.file.close()
 
 
 class ParseJsonArrayFunction(MapFunction):
@@ -54,6 +38,14 @@ class MyTimestampAssigner(TimestampAssigner):
     def extract_timestamp(self, element, record_timestamp) -> int:
         ts = datetime.strptime(element[0], "%Y-%m-%dT%H:%M:%S.%f").timestamp()
         return int(ts) * 1000
+
+# Define a simple MapFunction to convert data to string format
+class MapToString(MapFunction):
+    def map(self, value):
+        r = ""
+        for i in len(value):
+            r + f"{value[i]},"
+        return r
 
 
 def main(query, window):
@@ -89,7 +81,21 @@ def main(query, window):
 
     # Print the parsed tuples
     if query == 'q1':
+
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
+            Types.ROW_NAMED(["count", "mean_s194", "stddev_s194"],
+                            [Types.INT(), Types.FLOAT(), Types.FLOAT()])
+        ).build()
+
         res = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=window)
+        #mapped_data = res.map(lambda x: f"{x[0]},{x[1]},{x[2]}", output_type=Types.STRING())
+        #'''
+        mapped_data = res.map(
+            func=lambda i: Row(i[0], i[1], i[2]),
+            output_type=Types.ROW_NAMED(["count", "mean_s194", "stddev_s194"],
+                                        [Types.INT(), Types.FLOAT(), Types.FLOAT()])
+        )
+        #'''
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
         res = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=window)
@@ -97,10 +103,19 @@ def main(query, window):
         # Print the parsed tuples using the chosen print function
         ds = query_3(parsed_stream, window)
 
-    # Add the custom CSV sink to the transformed stream
-    # windowed_stream.add_sink(CsvSinkFunction("results.csv"))
 
-    res.print()
+    # Define the sink: writing to a CSV file
+    output_path = "output/results"
+
+    kafka_producer = FlinkKafkaProducer(
+        topic=query+"_"+str(window),
+        serialization_schema=serialization_schema,
+        producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
+                         'security.protocol': 'PLAINTEXT'}
+    )
+
+    # Add the sink to the data stream
+    mapped_data.add_sink(kafka_producer)
 
     env.execute("Flink Kafka Consumer Example")
 

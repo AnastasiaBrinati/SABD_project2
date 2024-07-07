@@ -1,14 +1,15 @@
-# Dockerfile.consumer
+FROM python:3.11
 
-FROM python:3.9-slim
+RUN apt-get update
+RUN apt-get -y install python3-pip
 
-WORKDIR /app
+WORKDIR /app/src
 
-# Install required Python packages
-RUN pip install kafka-python
+COPY config/requirements.txt .
+COPY src  ./src
 
-# Copy the consumer script
-COPY results_consumer.py .
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Run the consumer script
-#CMD ["python", "results_consumer.py"]
+# Command to run the application
+CMD ["/bin/bash"]

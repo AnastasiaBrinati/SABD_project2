@@ -10,7 +10,6 @@ output_tag = OutputTag("side-output", Types.STRING())
 class Query1AggregateFunction(AggregateFunction):
 
     def create_accumulator(self) -> Tuple[int, float, float]:
-        print("creating accumulator")
         return 0, 0.0, 0.0
 
     # For a new value new_value, compute the new count, new mean, the new M2.
@@ -18,7 +17,6 @@ class Query1AggregateFunction(AggregateFunction):
     # M2 aggregates the squared distance from the mean
     # count aggregates the number of samples seen so far
     def add(self, value: Tuple[str, int, float], accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
-        print(f"value: {value}")
         (count, mean, M2) = accumulator
         count += 1
         delta = float(value[2]) - mean
@@ -29,9 +27,9 @@ class Query1AggregateFunction(AggregateFunction):
 
     # Retrieve count, mean and variance from the aggregate
     def get_result(self, accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
-        print("getting result")
+
         (count, mean, M2) = accumulator
-        print(f"{count}, {mean}, {M2 / count}")
+        print(f"result: {count}, {mean}, {M2 / count}")
         return count, mean, M2 / count
 
     # Merges two accumulators
