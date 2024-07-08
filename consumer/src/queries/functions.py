@@ -177,7 +177,7 @@ class TDigestAggregateFunction(AggregateFunction):
 
     def get_result(self, accumulator: Tuple[str, int, int, object, int]) -> Tuple[
         str, int, float, float, float, int, int]:
-        print(f'Getting results from \t {accumulator}')
+        print(f'results from accumulators: \t {accumulator}')
         new_digest = TDigest() + accumulator[3]
         return (
             accumulator[0], accumulator[1], new_digest.percentile(25), new_digest.percentile(50),

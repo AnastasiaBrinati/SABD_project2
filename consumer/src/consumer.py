@@ -79,7 +79,6 @@ def main(query, window):
                                                     Types.FLOAT()  # '0.0'
                                                     ]))
 
-    # Print the parsed tuples
     if query == 'q1':
 
         result_columns = ["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"]
@@ -100,9 +99,23 @@ def main(query, window):
     if query == 'q2':
         # Print the parsed tuples using the chosen print function
         res = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=window)
+
     if query == 'q3':
-        # Print the parsed tuples using the chosen print function
+
+        result_columns = ["ts", "vault_id", "min", "25perc", "50perc", "75perc", "max", "count"]
+
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
+            Types.ROW_NAMED(result_columns,
+                            [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(), Types.FLOAT(), Types.INT(), Types.INT()])
+        ).build()
+
         res = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=window)
+
+        mapped_data = res.map(
+            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
+            output_type=Types.ROW_NAMED(result_columns,
+                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(), Types.FLOAT(), Types.INT(), Types.INT()])
+        )
 
 
     # Define the sink: writing to a CSV file

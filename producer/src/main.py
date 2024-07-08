@@ -25,14 +25,16 @@ def start_production():
         with open(CSV_FILE_PATH, 'r', newline='') as file:
             reader = csv.reader(file)
 
+            count = 0
+
             # Save the first row as header
             header = next(reader)
             first_row = next(reader)
-            count = 1
 
             current_date = datetime.strptime(first_row[0][:10], "%Y-%m-%d").date()
             print("Starting to send rows")
             producer.send_to_nifi(first_row)
+            count += 1
 
             for row in reader:
                 try:
@@ -50,9 +52,8 @@ def start_production():
                 try:
                     # send row to nifi
                     if count < 200:
-                        count += 1
-                        print(str(count) + " " + str(row[0:2]))
                         producer.send_to_nifi(row)
+                    count += 1
                 except Exception as e:
                     print(f"Error sending data to Nifi: {e}")
                     continue
