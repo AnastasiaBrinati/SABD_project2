@@ -13,15 +13,24 @@ The dataset contains S.M.A.R.T monitoring data, extended with some attributes ca
 
 #### Q1
 
-- ...
+- Per i vault (campo vault id) con identificativo compreso tra 1000 e 1020, calcolare il numero di
+eventi, il valor medio e la deviazione standard della temperatura misurata sui suoi hard disk (campo
+s194 temperature celsius). Si faccia attenzione alla possibile presenza di eventi che non
+hanno assegnato un valore per il campo relativo alla temperatura.
 
 #### Q2
 
-- ...
+- Calcolare la classifica aggiornata in tempo reale dei 10 vault che registrano il più alto numero di falli-
+menti nella stessa giornata. Per ogni vault, riportare il numero di fallimenti ed il modello e numero
+seriale degli hard disk guasti.
 
 #### Q3
 
-- ...
+- Calcolare il minimo, 25-esimo, 50-esimo, 75-esimo percentile e massimo delle ore di funzionamento
+(campo s9 power on hours) degli hark disk per i vault con identificativo tra 1090 (compreso) e
+1120 (compreso). Si presti attenzione, il campo s9 power on hours riporta un valore cumulativo,
+pertanto le statistiche richieste dalla query devono far riferimento all’ultimo valore utile di rilevazione
+per ogni specifico hard disk (si consideri l’uso del campo serial number).
 
 ## Usage
 
@@ -53,7 +62,7 @@ Once the architecture has started, to run the consumer (flink cluster consisting
 2. Make sure you are in the opt/flink wordir and start consuming:
    
    ```bash
-    bin/flink run --python /opt/flink/src/consumer.py --jar ./lib/flink-sql-connector-kafka-1.17.1.jar -- [ q1 | q2 | q3 ] [ 1 | 2 | all ]
+    bin/flink run --python /opt/flink/src/consumer.py --jar ./lib/flink-sql-connector-kafka-1.17.1.jar -- [ q1 | q2 | q3 ] [ 1 | 3 | all ]
    ```
    
 ### Running the Producer
@@ -71,4 +80,21 @@ Once the architecture has started, to run the producer of the tuples, follow the
    
    ```bash
    python src/main.py
+   ```
+
+### Running the Result Consumer
+
+Once a query has started, to consume the results and convert them to csv files, follow these steps:
+
+1. Start the consumer container by running:
+
+   ```bash
+   ./results.sh
+   ```
+   This command will provide you with a shell into the client container.
+
+2. Start reading:
+   
+   ```bash
+   python results_consumer.py <topic_name>
    ```
