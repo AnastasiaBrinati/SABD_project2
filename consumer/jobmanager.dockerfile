@@ -19,6 +19,8 @@ RUN pip3 install psquare
 RUN pip3 install tdigest
 
 COPY src  ./src
+COPY src/queries ./queries
+COPY src/queries/queries.py .
 
 # Esponi le porte necessarie per il JobManager
 EXPOSE 6123 8081

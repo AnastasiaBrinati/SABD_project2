@@ -2,6 +2,7 @@ import json
 import sys
 from datetime import datetime
 
+from pyflink.common import Configuration
 from pyflink.common import WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common import Row, Types
@@ -11,7 +12,7 @@ from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaPr
 from pyflink.datastream.functions import MapFunction
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
 
-from queries.queries import query_1, query_2, query_3
+from queries.queries import query_1, query_2, query_3, fake_print
 
 
 class ParseJsonArrayFunction(MapFunction):
@@ -49,10 +50,15 @@ class MapToString(MapFunction):
 
 
 def main(query, window):
+
     global side_output_stream, res
-    env = StreamExecutionEnvironment.get_execution_environment()
+    config = Configuration()
+    config.set_string("jobmanager.rpc.address", "jobmanager")  # Modifica con l'hostname del JobManager
+    config.set_integer("jobmanager.rpc.port", 6123)  # Porta del JobManager
+
+    env = StreamExecutionEnvironment.get_execution_environment(config)
     env.set_parallelism(1)
-    env.add_jars("file:///opt/flink/lib/flink-sql-connector-kafka-1.17.1.jar")
+    #env.add_jars("./lib/flink-sql-connector-kafka-1.17.1.jar")
 
     kafka_consumer = FlinkKafkaConsumer(topics='sabd', deserialization_schema=SimpleStringSchema(),
                                         properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers',
@@ -151,10 +157,6 @@ def main(query, window):
                                         [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(), Types.FLOAT(), Types.INT(), Types.INT()])
         )
 
-
-    # Define the sink: writing to a CSV file
-    output_path = "output/results"
-
     kafka_producer = FlinkKafkaProducer(
         topic=query+"_"+str(window),
         serialization_schema=serialization_schema,
@@ -170,6 +172,7 @@ def main(query, window):
 
 if __name__ == '__main__':
     # Get the print function argument from the command line
+
     if len(sys.argv) != 3:
         print("Usage: python script.py <query> <window>")
         sys.exit(1)

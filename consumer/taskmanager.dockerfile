@@ -18,5 +18,9 @@ RUN pip3 install jproperties
 RUN pip3 install psquare
 RUN pip3 install tdigest
 
+COPY src  ./src
+COPY src/queries ./queries
+COPY src/queries/queries.py .
+
 # Comando predefinito per avviare il taskmanager
 CMD ["taskmanager"]

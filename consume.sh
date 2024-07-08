@@ -14,8 +14,9 @@ docker build -t flink-taskmanager-image -f ./consumer/taskmanager.dockerfile ./c
 # Run the JobManager container
 docker run -d --name=jobmanager --network project2-network -p 8081:8081 -p 6123:6123 \
   --volume ./consumer/src:/src \
-  --workdir /opt/flink/src/ \
-  -e "FLINK_PROPERTIES=jobmanager.rpc.address: jobmanager" \
+  --workdir /opt/flink/ \
+  -e FLINK_PROPERTIES="jobmanager.rpc.address: jobmanager
+  taskmanager.numberOfTaskSlots: 4" \
   flink-jobmanager-image \
   jobmanager
 
