@@ -3,16 +3,16 @@ import sys
 from datetime import datetime
 
 from pyflink.common import Configuration
+from pyflink.common import Row, Types
 from pyflink.common import WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
-from pyflink.common import Row, Types
 from pyflink.common.watermark_strategy import TimestampAssigner
-from pyflink.datastream import StreamExecutionEnvironment, SinkFunction
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaProducer
+from pyflink.datastream.formats.json import JsonRowSerializationSchema
 from pyflink.datastream.functions import MapFunction
-from pyflink.datastream.formats.json import JsonRowDeserializationSchema, JsonRowSerializationSchema
 
-from queries.queries import query_1, query_2, query_3, fake_print
+from queries.queries import query_1, query_2, query_3
 
 
 class ParseJsonArrayFunction(MapFunction):
@@ -40,6 +40,7 @@ class MyTimestampAssigner(TimestampAssigner):
         ts = datetime.strptime(element[0], "%Y-%m-%dT%H:%M:%S.%f").timestamp()
         return int(ts) * 1000
 
+
 # Define a simple MapFunction to convert data to string format
 class MapToString(MapFunction):
     def map(self, value):
@@ -50,7 +51,6 @@ class MapToString(MapFunction):
 
 
 def main(query, window):
-
     global side_output_stream, res
     config = Configuration()
     config.set_string("jobmanager.rpc.address", "jobmanager")  # Modifica con l'hostname del JobManager
@@ -58,7 +58,7 @@ def main(query, window):
 
     env = StreamExecutionEnvironment.get_execution_environment(config)
     env.set_parallelism(1)
-    #env.add_jars("./lib/flink-sql-connector-kafka-1.17.1.jar")
+    # env.add_jars("./lib/flink-sql-connector-kafka-1.17.1.jar")
 
     kafka_consumer = FlinkKafkaConsumer(topics='sabd', deserialization_schema=SimpleStringSchema(),
                                         properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers',
@@ -85,84 +85,69 @@ def main(query, window):
                                                     Types.FLOAT()  # '0.0'
                                                     ]))
 
+    # Print the parsed tuples
     if query == 'q1':
-
         result_columns = ["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"]
 
-        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
-            Types.ROW_NAMED(result_columns,
-                            [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
-        ).build()
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(result_columns,
+                                                                                                   [Types.STRING(),
+                                                                                                    Types.INT(),
+                                                                                                    Types.INT(),
+                                                                                                    Types.FLOAT(),
+                                                                                                    Types.FLOAT()])).build()
 
         res = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=window)
 
-        mapped_data = res.map(
-            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
+        mapped_data = res.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
             output_type=Types.ROW_NAMED(result_columns,
-                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
-        )
+                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
 
     if query == 'q2':
+        fields = Types.ROW_NAMED(["timestamp", "vault id1", "failures1 ([modelA, serialA, ...])", "vault id2",
+                                  "failures2 ([modelA, serialA, ...])", "vault id3",
+                                  "failures3 ([modelA, serialA, ...])", "vault id4",
+                                  "failures4 ([modelA, serialA, ...])", "vault id5",
+                                  "failures5 ([modelA, serialA, ...])", "vault id6",
+                                  "failures6 ([modelA, serialA, ...])", "vault id7",
+                                  "failures7 ([modelA, serialA, ...])", "vault id8",
+                                  "failures8 ([modelA, serialA, ...])", "vault id9",
+                                  "failures9 ([modelA, serialA, ...])", "vault id10",
+                                  "failures10 ([modelA, serialA, ...])", ],
+                                 [Types.STRING(), Types.INT(), Types.STRING(), Types.INT(), Types.STRING(), Types.INT(),
+                                  Types.STRING(), Types.INT(), Types.STRING(), Types.INT(), Types.STRING(), Types.INT(),
+                                  Types.STRING(), Types.INT(), Types.STRING(), Types.INT(), Types.STRING(), Types.INT(),
+                                  Types.STRING(), Types.INT(), Types.STRING()])
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(fields).build()
 
-        result_columns = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"]
-
-        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
-            Types.ROW_NAMED(result_columns,
-                            [Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING(),
-                             Types.INT(), Types.STRING()])
-        ).build()
-
+        # Print the parsed tuples using the chosen print function
         res = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=window)
 
         mapped_data = res.map(
-            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12],
-                               i[13], i[14], i[15], i[16], i[17], i[18], i[19], i[20]),
-            output_type=Types.ROW_NAMED(result_columns,
-                                        [Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING(),
-                                         Types.INT(), Types.STRING()])
-        )
-
+            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12], i[13],
+                               i[14], i[15], i[16], i[17], i[18], i[19], i[20]), output_type=fields)
     if query == 'q3':
-
         result_columns = ["ts", "vault_id", "min", "25perc", "50perc", "75perc", "max", "count"]
 
-        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
-            Types.ROW_NAMED(result_columns,
-                            [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(), Types.FLOAT(), Types.INT(), Types.INT()])
-        ).build()
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(result_columns,
+                                                                                                   [Types.STRING(),
+                                                                                                    Types.INT(),
+                                                                                                    Types.INT(),
+                                                                                                    Types.FLOAT(),
+                                                                                                    Types.FLOAT(),
+                                                                                                    Types.FLOAT(),
+                                                                                                    Types.INT(),
+                                                                                                    Types.INT()])).build()
 
         res = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=window)
 
-        mapped_data = res.map(
-            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
+        mapped_data = res.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
             output_type=Types.ROW_NAMED(result_columns,
-                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(), Types.FLOAT(), Types.INT(), Types.INT()])
-        )
+                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
+                                         Types.FLOAT(), Types.INT(), Types.INT()]))
 
-    kafka_producer = FlinkKafkaProducer(
-        topic=query+"_"+str(window),
-        serialization_schema=serialization_schema,
+    kafka_producer = FlinkKafkaProducer(topic=f'{query}_{str(window)}', serialization_schema=serialization_schema,
         producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
-                         'security.protocol': 'PLAINTEXT'}
-    )
+                         'security.protocol': 'PLAINTEXT'})
 
     # Add the sink to the data stream
     mapped_data.add_sink(kafka_producer)
