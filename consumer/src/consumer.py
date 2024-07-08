@@ -97,8 +97,42 @@ def main(query, window):
         )
 
     if query == 'q2':
-        # Print the parsed tuples using the chosen print function
+
+        result_columns = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"]
+
+        serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
+            Types.ROW_NAMED(result_columns,
+                            [Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING(),
+                             Types.INT(), Types.STRING()])
+        ).build()
+
         res = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=window)
+
+        mapped_data = res.map(
+            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12],
+                               i[13], i[14], i[15], i[16], i[17], i[18], i[19], i[20]),
+            output_type=Types.ROW_NAMED(result_columns,
+                                        [Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING(),
+                                         Types.INT(), Types.STRING()])
+        )
 
     if query == 'q3':
 

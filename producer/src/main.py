@@ -25,15 +25,18 @@ def start_production():
         with open(CSV_FILE_PATH, 'r', newline='') as file:
             reader = csv.reader(file)
 
+            days_count = 0
             count = 0
 
             # Save the first row as header
             header = next(reader)
             first_row = next(reader)
+            print(f"first_row: {first_row}")
 
             current_date = datetime.strptime(first_row[0][:10], "%Y-%m-%d").date()
             print("Starting to send rows")
             producer.send_to_nifi(first_row)
+
             count += 1
 
             for row in reader:
@@ -45,18 +48,23 @@ def start_production():
 
                 if timestamp > current_date:
                     # fake waiting
-                    print("finished one day events")
+                    days_count += 1
+                    count = 0
+                    print(f"finished day {days_count} events")
                     time.sleep(5)
                     current_date = timestamp
-                    count = 0
                 try:
                     # send row to nifi
-                    if count < 200:
-                        producer.send_to_nifi(row)
                     count += 1
+                    if count < 2000:
+                        producer.send_to_nifi(row)
                 except Exception as e:
                     print(f"Error sending data to Nifi: {e}")
                     continue
+
+            last_row = ['2060-12-12T00:00:00.000000', '8HK2SSMH', 'HGST HUH721212ALN604', '0', '1113', '0.0', '96.0', '396.0', '24.0', '0.0', '0.0', '18.0', '38445.0', '0.0', '24.0', '', '', '', '', '', '', '', '', '1613.0', '1613.0', '31.0', '', '0.0', '0.0', '0.0', '0.0', '', '', '', '', '', '', '', '']
+            print("sending the last row")
+            producer.send_to_nifi(last_row)
 
     except FileNotFoundError:
         print(f"Error: file '{filename}' not found.")
