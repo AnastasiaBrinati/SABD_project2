@@ -95,7 +95,7 @@ class Query2ProcessWindowFunction(ProcessWindowFunction):
     """
 
     def process(self, key: Tuple[str, int], context: 'ProcessWindowFunction.Context',
-                elements: Iterable[Tuple[int, str]]) -> Iterable[Tuple[str, int, str]]:
+                elements: Iterable[Tuple[int, str]]) -> Iterable[Tuple[str, int, int, str]]:
         """
         Sorts aggregates elements by failures count, the add the key and returns
         """
@@ -110,36 +110,40 @@ class Query2ProcessWindowFunction(ProcessWindowFunction):
                 (key[0], key[1], f'Non sono occorsi fallimenti nel vault {key[1]} nel giorno {key[0]}'))
         yield from keyed_sorted_list"""
         for el in elements:
-            yield key[0], key[1], "%d %s" % (el[0], el[1])
+            yield key[0], key[1], el[0], el[1]
 
 
 class Query2SortingAggregationFunction(AggregateFunction):
-    def create_accumulator(self) -> List[Tuple[str, int, str]]:
+    def create_accumulator(self) -> List[Tuple[str, int, int, str]]:
         return list()
 
-    def add(self, value: Tuple[str, int, str], accumulator: List[Tuple[str, int, str]]) -> List[Tuple[str, int, str]]:
+    def add(self, value: Tuple[str, int, int, str], accumulator: List[Tuple[str, int, int, str]]) -> List[Tuple[str, int, int, str]]:
         accumulator.append(value)
         return accumulator
 
-    def get_result(self, accumulator: List[Tuple[str, int, str]]) -> Tuple[
+    def get_result(self, accumulator: List[Tuple[str, int, int, str]]) -> Tuple[
         str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]:
         template = ("", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "")
-        accumulator.sort(key=lambda x: x[1], reverse=True)
+        print(f'Getting results: {accumulator}')
+        accumulator.sort(key=lambda x: x[2], reverse=True)
+        res = []
+        for el in accumulator:
+            res.append((el[0], el[1], f'{el[2]} {el[3]}'))
         if len(accumulator) > 0:
-            return (accumulator[0][0], accumulator[0][1], accumulator[0][2],
-                    accumulator[1][1] if len(accumulator) > 1 else 0, accumulator[1][2] if len(accumulator) > 1 else "",
-                    accumulator[2][1] if len(accumulator) > 2 else 0, accumulator[2][2] if len(accumulator) > 2 else "",
-                    accumulator[3][1] if len(accumulator) > 3 else 0, accumulator[3][2] if len(accumulator) > 3 else "",
-                    accumulator[4][1] if len(accumulator) > 4 else 0, accumulator[4][2] if len(accumulator) > 4 else "",
-                    accumulator[5][1] if len(accumulator) > 5 else 0, accumulator[5][2] if len(accumulator) > 5 else "",
-                    accumulator[6][1] if len(accumulator) > 6 else 0, accumulator[6][2] if len(accumulator) > 6 else "",
-                    accumulator[7][1] if len(accumulator) > 7 else 0, accumulator[7][2] if len(accumulator) > 7 else "",
-                    accumulator[8][1] if len(accumulator) > 8 else 0, accumulator[8][2] if len(accumulator) > 8 else "",
-                    accumulator[9][1] if len(accumulator) > 9 else 0, accumulator[9][2] if len(accumulator) > 9 else "")
+            return (res[0][0], res[0][1], res[0][2],
+                    res[1][1] if len(res) > 1 else 0, res[1][2] if len(res) > 1 else "",
+                    res[2][1] if len(res) > 2 else 0, res[2][2] if len(res) > 2 else "",
+                    res[3][1] if len(res) > 3 else 0, res[3][2] if len(res) > 3 else "",
+                    res[4][1] if len(res) > 4 else 0, res[4][2] if len(res) > 4 else "",
+                    res[5][1] if len(res) > 5 else 0, res[5][2] if len(res) > 5 else "",
+                    res[6][1] if len(res) > 6 else 0, res[6][2] if len(res) > 6 else "",
+                    res[7][1] if len(res) > 7 else 0, res[7][2] if len(res) > 7 else "",
+                    res[8][1] if len(res) > 8 else 0, res[8][2] if len(res) > 8 else "",
+                    res[9][1] if len(res) > 9 else 0, res[9][2] if len(res) > 9 else "")
         else:
             return template
 
-    def merge(self, acc_a: List[Tuple[str, int, str]], acc_b: List[Tuple[str, int, str]]) -> List[Tuple[str, int, str]]:
+    def merge(self, acc_a: List[Tuple[str, int, int, str]], acc_b: List[Tuple[str, int, int, str]]) -> List[Tuple[str, int, int, str]]:
         return acc_a + acc_b
 
 

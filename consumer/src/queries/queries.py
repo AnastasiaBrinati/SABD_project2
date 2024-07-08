@@ -29,6 +29,14 @@ def query_1(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int = 1
 
 def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) -> DataStream:
     # Takes only required data (timestamp, vault_id, model, serial_number, failure_flag)
+    ds.map(
+        func=lambda i: (i[0], i[4], i[2], i[1], i[3]),
+        output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.STRING(), Types.STRING(), Types.INT()])) \
+        .assign_timestamps_and_watermarks(watermark_strategy) \
+        .filter(lambda i: i[4] == 1) \
+        .key_by(CustomKeySelector()).print() \
+        # .window(TumblingEventTimeWindows.of(Time.days(days))).print()
+
     aggregated = ds.map(
         func=lambda i: (i[0], i[4], i[2], i[1], i[3]),
         output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.STRING(), Types.STRING(), Types.INT()])) \
@@ -40,15 +48,18 @@ def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) ->
         Query2AggregateFunction(),
         window_function=Query2ProcessWindowFunction(),
         accumulator_type=Types.TUPLE([Types.INT(), Types.LIST(Types.TUPLE([Types.STRING(), Types.STRING()]))]),
-        output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.STRING()])
+        output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT(), Types.STRING()])
     )
+
+    print("Printing aggregated")
     aggregated.print()
-    return aggregated.key_by(lambda i: i[0]) \
+
+    sorted = aggregated.key_by(lambda i: i[0]) \
         .window(TumblingEventTimeWindows.of(Time.days(days))) \
         .aggregate(
         aggregate_function=Query2SortingAggregationFunction(),
         window_function=Query2SortingProcessWindowFunction(),
-        accumulator_type=Types.LIST(Types.TUPLE([Types.STRING(), Types.INT(), Types.STRING()])),
+        accumulator_type=Types.LIST(Types.TUPLE([Types.STRING(), Types.INT(), Types.INT(), Types.STRING()])),
         output_type=Types.TUPLE([Types.STRING(),
                                  Types.INT(), Types.STRING(),
                                  Types.INT(), Types.STRING(),
@@ -60,7 +71,11 @@ def query_2(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) ->
                                  Types.INT(), Types.STRING(),
                                  Types.INT(), Types.STRING(),
                                  Types.INT(), Types.STRING()])
-    )
+        )
+
+    sorted.print()
+
+    return sorted
 
 
 def query_3(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int):
@@ -72,14 +87,13 @@ def query_3(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int):
     hd_hours = ds.assign_timestamps_and_watermarks(watermark_strategy) \
         .map(lambda i: (i[0], i[4], i[1], i[5])) \
         .filter(lambda i: 1090 <= i[1] <= 1120) \
-        .key_by(lambda i: i[2]) \
+        .key_by(lambda i: (i[1], i[2])) \
         .window(TumblingEventTimeWindows.of(Time.days(days))) \
         .reduce(lambda x, acc: (x[0] if x[0] < acc[0] else acc[0], x[1], x[2], max(x[3], acc[3])))
 
     """
     Now, keys by vault_id and aggregates values with t-digest method.
     """
-    # Key by vault_id
     return hd_hours.key_by(lambda i: i[1]) \
         .window(TumblingEventTimeWindows.of(Time.days(days))) \
         .aggregate(
