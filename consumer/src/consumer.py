@@ -2,7 +2,7 @@ import json
 import sys
 from datetime import datetime
 
-from pyflink.common import Configuration, Row, Duration
+from pyflink.common import Configuration, Row
 from pyflink.common import Types
 from pyflink.common import WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
@@ -59,7 +59,7 @@ def main(query_name):
                                                     'security.protocol': 'PLAINTEXT'})
 
     # Defining the Watermark Strategy
-    watermark_strategy = (WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(5)).with_timestamp_assigner(MyTimestampAssigner()))
+    watermark_strategy = (WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(MyTimestampAssigner()))
     #
     # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi sul campo timestamp degli eventi stessi
 
