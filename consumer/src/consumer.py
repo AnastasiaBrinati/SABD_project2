@@ -200,7 +200,7 @@ def main(query):
 if __name__ == '__main__':
     # Get the print function argument from the command line
 
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         print("Usage: python script.py <query>")
         sys.exit(1)
 
