@@ -55,9 +55,8 @@ def start_production():
                     current_date = timestamp
                 try:
                     # send row to nifi
-                    if count < 300:
-                        count += 1
-                        producer.send_to_nifi(row)
+                    count += 1
+                    producer.send_to_nifi(row)
                 except Exception as e:
                     print(f"Error sending data to Nifi: {e}")
                     continue
