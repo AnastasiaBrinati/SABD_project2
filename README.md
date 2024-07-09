@@ -62,7 +62,7 @@ Once the architecture has started, to run the consumer (flink cluster consisting
 2. Make sure you are in the opt/flink wordir and start consuming:
    
    ```bash
-    bin/flink run --python /opt/flink/src/consumer.py --jar ./lib/flink-sql-connector-kafka-1.17.1.jar -- [ q1 | q2 | q3 ] [ 1 | 3 | all ]
+    bin/flink run --python /opt/flink/src/consumer.py --jar ./lib/flink-sql-connector-kafka-1.17.1.jar -- [ q1 | q2 | q3 ] [ N | all ]
    ```
    
 ### Running the Producer
