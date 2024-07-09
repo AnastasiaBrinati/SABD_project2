@@ -84,8 +84,8 @@ def query_3(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int):
     and gets the total number of power-on hours (it a cumulative data, so max() is
     used to get the total).
     """
-    hd_hours = ds.assign_timestamps_and_watermarks(watermark_strategy) \
-        .map(lambda i: (i[0], i[4], i[1], i[5])) \
+    hd_hours = ds.map(lambda i: (i[0], i[4], i[1], i[5])) \
+        .assign_timestamps_and_watermarks(watermark_strategy) \
         .filter(lambda i: 1090 <= i[1] <= 1120) \
         .key_by(lambda i: (i[1], i[2])) \
         .window(TumblingEventTimeWindows.of(Time.days(days))) \

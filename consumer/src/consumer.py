@@ -50,27 +50,25 @@ class MapToString(MapFunction):
         return r
 
 
-def main(query, window):
+def main(query):
     global side_output_stream, res
     config = Configuration()
     config.set_string("jobmanager.rpc.address", "jobmanager")  # Modifica con l'hostname del JobManager
     config.set_integer("jobmanager.rpc.port", 6123)  # Porta del JobManager
 
     env = StreamExecutionEnvironment.get_execution_environment(config)
-    env.set_parallelism(1)
+    env.set_parallelism(2)
     # env.add_jars("./lib/flink-sql-connector-kafka-1.17.1.jar")
 
+    # Sourcing
     kafka_consumer = FlinkKafkaConsumer(topics='sabd', deserialization_schema=SimpleStringSchema(),
                                         properties={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_consumers',
                                                     'security.protocol': 'PLAINTEXT'})
 
-    # Definizione della strategia di watermark
+    # Defining the Watermark Strategy
     watermark_strategy = (WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(MyTimestampAssigner()))
-    # for_bounded_out_of_orderness: Questa funzione imposta un ritardo massimo tollerabile di 10 secondi.
-    #                               Significa che Flink accetta eventi che arrivano con un massimo di 10 secondi
-    #                               di ritardo rispetto all'evento più recente già processato
-    # with_timestamp_assigner:      Assegna il timestamp corretto agli eventi basandosi sul campo timestamp
-    #                               degli eventi stessi
+    #
+    # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi sul campo timestamp degli eventi stessi
 
     ds = env.add_source(kafka_consumer)
 
@@ -96,11 +94,21 @@ def main(query, window):
                                                                                                     Types.FLOAT(),
                                                                                                     Types.FLOAT()])).build()
 
-        res = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=window)
+        res1 = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=1)
+        res2 = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=3)
+        res3 = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=23)
 
-        mapped_data = res.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
-            output_type=Types.ROW_NAMED(result_columns,
-                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+        mapped_data1 = res1.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
+                                output_type=Types.ROW_NAMED(result_columns,
+                                                            [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+
+        mapped_data2 = res2.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
+                               output_type=Types.ROW_NAMED(result_columns,
+                                                           [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+
+        mapped_data3 = res3.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
+                               output_type=Types.ROW_NAMED(result_columns,
+                                                           [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
 
     if query == 'q2':
         fields = Types.ROW_NAMED(["timestamp", "vault id1", "failures1 ([modelA, serialA, ...])", "vault id2",
@@ -119,12 +127,20 @@ def main(query, window):
                                   Types.STRING(), Types.INT(), Types.STRING()])
         serialization_schema = JsonRowSerializationSchema.builder().with_type_info(fields).build()
 
-        # Print the parsed tuples using the chosen print function
-        res = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=window)
+        res1 = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=1)
+        res2 = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=3)
+        res3 = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=23)
 
-        mapped_data = res.map(
+        mapped_data1 = res1.map(
             func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12], i[13],
                                i[14], i[15], i[16], i[17], i[18], i[19], i[20]), output_type=fields)
+        mapped_data2 = res2.map(
+            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12], i[13],
+                               i[14], i[15], i[16], i[17], i[18], i[19], i[20]), output_type=fields)
+        mapped_data3 = res3.map(
+            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12], i[13],
+                               i[14], i[15], i[16], i[17], i[18], i[19], i[20]), output_type=fields)
+
     if query == 'q3':
         result_columns = ["ts", "vault_id", "min", "25perc", "50perc", "75perc", "max", "count"]
 
@@ -138,39 +154,60 @@ def main(query, window):
                                                                                                     Types.INT(),
                                                                                                     Types.INT()])).build()
 
-        res = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=window)
+        res1 = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=1)
+        res2 = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=3)
+        res3 = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=23)
 
-        mapped_data = res.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
-            output_type=Types.ROW_NAMED(result_columns,
-                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
-                                         Types.FLOAT(), Types.INT(), Types.INT()]))
+        mapped_data1 = res1.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
+                            output_type=Types.ROW_NAMED(result_columns,
+                                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
+                                                         Types.FLOAT(), Types.INT(), Types.INT()]))
 
-    kafka_producer = FlinkKafkaProducer(topic=f'{query}_{str(window)}', serialization_schema=serialization_schema,
+        mapped_data2 = res2.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
+                              output_type=Types.ROW_NAMED(result_columns,
+                                                          [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
+                                                           Types.FLOAT(), Types.INT(), Types.INT()]))
+
+        mapped_data3 = res3.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
+                              output_type=Types.ROW_NAMED(result_columns,
+                                                          [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
+                                                           Types.FLOAT(), Types.INT(), Types.INT()]))
+
+    # Sinking
+    kafka_producer1 = FlinkKafkaProducer(topic=f'{query}+"_1"', serialization_schema=serialization_schema,
         producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
                          'security.protocol': 'PLAINTEXT'})
-
     # Add the sink to the data stream
-    mapped_data.add_sink(kafka_producer)
+    mapped_data1.add_sink(kafka_producer1)
 
-    env.execute("Flink Kafka Consumer Example")
+
+    kafka_producer2 = FlinkKafkaProducer(topic=f'{query}+"_3"', serialization_schema=serialization_schema,
+                                        producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
+                                                         'security.protocol': 'PLAINTEXT'})
+    # Add the sink to the data stream
+    mapped_data2.add_sink(kafka_producer2)
+
+
+    kafka_producer3 = FlinkKafkaProducer(topic=f'{query}+"_all"', serialization_schema=serialization_schema,
+                                        producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
+                                                         'security.protocol': 'PLAINTEXT'})
+    # Add the sink to the data stream
+    mapped_data3.add_sink(kafka_producer3)
+
+    env.execute("Query "+query)
 
 
 if __name__ == '__main__':
     # Get the print function argument from the command line
 
     if len(sys.argv) != 3:
-        print("Usage: python script.py <query> <window>")
+        print("Usage: python script.py <query>")
         sys.exit(1)
 
     query = sys.argv[1]
-    window_size = sys.argv[2]
-
-    if window_size != '1' and window_size != '3' and window_size != '0':
-        print("Available windows: 1, 3, all")
-        sys.exit(1)
 
     if query != 'q1' and query != 'q2' and query != 'q3':
         print("Available queries: q1, q2, q3")
         sys.exit(1)
 
-    main(query, int(window_size))
+    main(query)

@@ -50,7 +50,7 @@ For further details on the script, execute:
 
 ### Running the Consumer
 
-Once the architecture has started, to run the consumer (flink cluster consisting of one jobmanager and one taskamanager), follow these steps:
+Once the architecture has started, to run the consumer (flink cluster consisting of one jobmanager and two taskmanagers), follow these steps:
 
 1. Start the consumer containers by running:
 
@@ -62,7 +62,7 @@ Once the architecture has started, to run the consumer (flink cluster consisting
 2. Make sure you are in the opt/flink wordir and start consuming:
    
    ```bash
-    bin/flink run --python /opt/flink/src/consumer.py --jar ./lib/flink-sql-connector-kafka-1.17.1.jar -- [ q1 | q2 | q3 ] [ N | all ]
+    bin/flink run --python /opt/flink/src/consumer.py --jar ./lib/flink-sql-connector-kafka-1.17.1.jar -- [ q1 | q2 | q3 ]
    ```
    
 ### Running the Producer

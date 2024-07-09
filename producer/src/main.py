@@ -56,7 +56,7 @@ def start_production():
                 try:
                     # send row to nifi
                     count += 1
-                    if count < 2000:
+                    if count < 200:
                         producer.send_to_nifi(row)
                 except Exception as e:
                     print(f"Error sending data to Nifi: {e}")
