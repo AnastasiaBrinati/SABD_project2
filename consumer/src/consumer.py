@@ -2,7 +2,7 @@ import json
 import sys
 from datetime import datetime
 
-from pyflink.common import Configuration, Row
+from pyflink.common import Configuration, Row, Duration
 from pyflink.common import Types
 from pyflink.common import WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
@@ -59,7 +59,7 @@ def main(query_name):
                                                     'security.protocol': 'PLAINTEXT'})
 
     # Defining the Watermark Strategy
-    watermark_strategy = (WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(MyTimestampAssigner()))
+    watermark_strategy = (WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(5)).with_timestamp_assigner(MyTimestampAssigner()))
     #
     # with_timestamp_assigner: Assegna il timestamp corretto agli eventi basandosi sul campo timestamp degli eventi stessi
 
@@ -79,11 +79,17 @@ def main(query_name):
     # Print the parsed tuples
     if query_name == 'q1':
         result_columns = ["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"]
+        timing_result_columns = ["throughput", "latency"]
 
         serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(result_columns,
                                                                                                    [Types.STRING(),
                                                                                                     Types.INT(),
                                                                                                     Types.INT(),
+                                                                                                    Types.FLOAT(),
+                                                                                                    Types.FLOAT()])).build()
+
+        timing_serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(timing_result_columns,
+                                                                                                   [
                                                                                                     Types.FLOAT(),
                                                                                                     Types.FLOAT()])).build()
 
@@ -100,15 +106,19 @@ def main(query_name):
         mapped_data3 = res3.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]), output_type=mapped_output_type)
 
         # Retrieving timing metrics
-        """timing1 = res1.map(func=TimeMap(), output_type=Types.ROW_NAMED(
+        t1 = res1.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+        t2 = res2.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+        t3 = res3.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+
+        timing1 = t1.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
             ['throughput', 'latency'],
-            [Types.DOUBLE(), Types.DOUBLE()]))
-        timing2 = res2.map(func=TimeMap(), output_type=Types.ROW_NAMED(
+            [Types.FLOAT(), Types.FLOAT()]))
+        timing2 = t2.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
             ['throughput', 'latency'],
-            [Types.DOUBLE(), Types.DOUBLE()]))
-        timing3 = res3.map(func=TimeMap(), output_type=Types.ROW_NAMED(
+            [Types.FLOAT(), Types.FLOAT()]))
+        timing3 = t3.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
             ['throughput', 'latency'],
-            [Types.DOUBLE(), Types.DOUBLE()]))"""
+            [Types.FLOAT(), Types.FLOAT()]))
 
     if query_name == 'q2':
         fields = Types.ROW_NAMED(["timestamp", "vault id1", "failures1 ([modelA, serialA, ...])", "vault id2",
@@ -172,28 +182,28 @@ def main(query_name):
 
     kafka_producer1 = FlinkKafkaProducer(topic=f"{query_name}_1", serialization_schema=serialization_schema,
                                          producer_config=producer_config)
-    kafka_metrics1 = FlinkKafkaProducer(topic=f"m_{query_name}_1", serialization_schema=serialization_schema,
+    kafka_metrics1 = FlinkKafkaProducer(topic=f"m_{query_name}_1", serialization_schema=timing_serialization_schema,
                                         producer_config=producer_config)
 
     # Add the sink to the data stream
     mapped_data1.add_sink(kafka_producer1)
-    #timing1.add_sink(kafka_metrics1)
+    timing1.add_sink(kafka_metrics1)
 
     kafka_producer2 = FlinkKafkaProducer(topic=f'{query_name}_3', serialization_schema=serialization_schema,
                                          producer_config=producer_config)
-    kafka_metrics2 = FlinkKafkaProducer(topic=f'm_{query_name}_3', serialization_schema=serialization_schema,
+    kafka_metrics2 = FlinkKafkaProducer(topic=f'm_{query_name}_3', serialization_schema=timing_serialization_schema,
                                         producer_config=producer_config)
     # Add the sink to the data stream
     mapped_data2.add_sink(kafka_producer2)
-    #timing2.add_sink(kafka_metrics2)
+    timing2.add_sink(kafka_metrics2)
 
     kafka_producer3 = FlinkKafkaProducer(topic=f'{query_name}_all', serialization_schema=serialization_schema,
                                          producer_config=producer_config)
-    kafka_metrics3 = FlinkKafkaProducer(topic=f'm_{query_name}_all', serialization_schema=serialization_schema,
+    kafka_metrics3 = FlinkKafkaProducer(topic=f'm_{query_name}_all', serialization_schema=timing_serialization_schema,
                                         producer_config=producer_config)
     # Add the sink to the data stream
     mapped_data3.add_sink(kafka_producer3)
-    #timing3.add_sink(kafka_metrics3)
+    timing3.add_sink(kafka_metrics3)
 
     env.execute("Query " + query_name)
 

@@ -19,6 +19,7 @@ class Query1AggregateFunction(AggregateFunction):
     # count aggregates the number of samples seen so far
     def add(self, value: Tuple[str, int, float], accumulator: Tuple[str, int, float, float]) -> Tuple[
         str, int, float, float]:
+        print(f' Accumulator: {accumulator}')
         (timestamp, count, mean, M2) = accumulator
         if timestamp == '':
             timestamp = value[0]
@@ -49,10 +50,14 @@ class Query1ProcessWindowFunction(ProcessWindowFunction):
 
     def process(self, key: int, context: 'ProcessWindowFunction.Context',
                 elements: Iterable[Tuple[str, int, float, float]]) -> Iterable[Tuple[str, int, int, float, float]]:
-        keyed_sorted_list = []
+        keyed_elements = []
+        windows_timestamps = []
+        for e in elements:
+            windows_timestamps.append(e[0])
+        min_ts = min(windows_timestamps)
         for element in elements:
-            keyed_sorted_list.append((element[0], key, element[1], element[2], element[3]))
-        yield from keyed_sorted_list
+            keyed_elements.append((min_ts, key, element[1], element[2], element[3]))
+        yield from keyed_elements
 
 
 class Query2AggregateFunction(AggregateFunction):

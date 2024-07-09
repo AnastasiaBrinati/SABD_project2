@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from pyflink.common import Row
 from pyflink.datastream import MapFunction
 from datetime import datetime
@@ -10,14 +12,14 @@ class TimeMap(MapFunction):
         self.elapsed_time = self.start_time
         self.count = 0
 
-    def map(self, value):
+    def map(self, value) -> Tuple[float, float]:
         self.count += 1
-        self.elapsed_time = datetime.now().second - self.start_time
+        self.elapsed_time = 1 if self.elapsed_time == self.start_time else datetime.now().second - self.start_time
 
         thr = self.count / self.elapsed_time
 
         # Returns throughput and latency
-        return thr, 1/thr
+        return float(thr), float(1/thr)
 
 
 def query1_output_map_function(i):

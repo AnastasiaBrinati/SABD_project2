@@ -12,13 +12,14 @@ from .key_selectors import CustomKeySelector
 
 def query_1(ds: DataStream, watermark_strategy: WatermarkStrategy, days: int) -> DataStream:
     # Takes only required data for each dataset entry (timestamp, vault_id, temperature)
-    res = ds.map(
-        func=lambda i: (i[0], i[4], i[6]),
+    keyed = ds.map(
+        func=lambda i: (i[0], i[4], float(i[6])),
         output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.FLOAT()])
     ).assign_timestamps_and_watermarks(watermark_strategy) \
-        .filter(lambda i: 1000 <= i[1] <= 1020 and float(i[2]) != 0) \
-        .key_by(lambda i: i[1]) \
-        .window(TumblingEventTimeWindows.of(Time.days(days))) \
+        .filter(lambda i: 1000 <= i[1] <= 1020 and i[2] != 0) \
+        .key_by(lambda i: i[1])
+    keyed.print()
+    res = keyed.window(TumblingEventTimeWindows.of(Time.days(days))) \
         .aggregate(Query1AggregateFunction(),
                    window_function=Query1ProcessWindowFunction(),
                    accumulator_type=Types.TUPLE(
