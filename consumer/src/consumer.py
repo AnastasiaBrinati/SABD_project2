@@ -50,7 +50,7 @@ def main(query_name):
     config.set_integer("jobmanager.rpc.port", 6123)  # Porta del JobManager
 
     env = StreamExecutionEnvironment.get_execution_environment(config)
-    env.set_parallelism(1)
+    env.set_parallelism(4)
     # env.add_jars("./lib/flink-sql-connector-kafka-1.17.1.jar")
 
     # Sourcing
