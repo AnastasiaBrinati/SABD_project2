@@ -14,7 +14,11 @@ class TimeMap(MapFunction):
 
     def map(self, value) -> Tuple[float, float]:
         self.count += 1
-        self.elapsed_time = 1 if self.elapsed_time == self.start_time else datetime.now().second - self.start_time
+        self.elapsed_time = datetime.now().second - self.start_time
+
+        # Avoid division by zero errors
+        if self.elapsed_time == 0:
+            self.elapsed_time = 1
 
         thr = self.count / self.elapsed_time
 
