@@ -2,6 +2,7 @@ from typing import Tuple, Iterable, List
 
 from pyflink.common import Types
 from pyflink.datastream import AggregateFunction, ProcessWindowFunction, OutputTag
+from pyflink.datastream.functions import ProcessAllWindowFunction
 from tdigest import TDigest
 
 output_tag = OutputTag("side-output", Types.STRING())
@@ -9,43 +10,48 @@ output_tag = OutputTag("side-output", Types.STRING())
 
 class Query1AggregateFunction(AggregateFunction):
 
-    def create_accumulator(self) -> Tuple[int, float, float]:
-        return 0, 0.0, 0.0
+    def create_accumulator(self) -> Tuple[str, int, float, float]:
+        return '', 0, 0.0, 0.0
 
     # For a new value new_value, compute the new count, new mean, the new M2.
     # mean accumulates the mean of the entire dataset
     # M2 aggregates the squared distance from the mean
     # count aggregates the number of samples seen so far
-    def add(self, value: Tuple[str, int, float], accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
-        (count, mean, M2) = accumulator
+    def add(self, value: Tuple[str, int, float], accumulator: Tuple[str, int, float, float]) -> Tuple[
+        str, int, float, float]:
+        (timestamp, count, mean, M2) = accumulator
+        if timestamp == '':
+            timestamp = value[0]
+        else:
+            timestamp = min(timestamp, value[0])
         count += 1
         delta = float(value[2]) - mean
         mean += delta / count
         delta2 = float(value[2]) - mean
         M2 += delta * delta2
-        return count, mean, M2
+        return timestamp, count, mean, M2
 
     # Retrieve count, mean and variance from the aggregate
-    def get_result(self, accumulator: Tuple[int, float, float]) -> Tuple[int, float, float]:
-
-        (count, mean, M2) = accumulator
+    def get_result(self, accumulator: Tuple[str, int, float, float]) -> Tuple[str, int, float, float]:
+        (timestamp, count, mean, M2) = accumulator
         print(f"result: {count}, {mean}, {M2 / count}")
-        return count, mean, M2 / count
+        return timestamp, count, mean, M2 / count
 
     # Merges two accumulators
-    def merge(self, acc_a: Tuple[int, float, float], acc_b: Tuple[int, float, float]) -> Tuple[int, float, float]:
+    def merge(self, acc_a: Tuple[str, int, float, float], acc_b: Tuple[str, int, float, float]) -> Tuple[
+        str, int, float, float]:
         print("merging")
-        return (acc_a[0] + acc_b[0], (acc_a[1] * acc_a[0] + acc_b[1] * acc_b[0]) / (acc_a[0] + acc_b[0]),
-                (acc_a[2] + acc_b[2]) / 2)
+        return (min(acc_a[0], acc_b[0]), acc_a[1] + acc_b[1],
+                (acc_a[2] * acc_a[1] + acc_b[2] * acc_b[1]) / (acc_a[1] + acc_b[1]), (acc_a[3] + acc_b[3]) / 2)
 
 
 class Query1ProcessWindowFunction(ProcessWindowFunction):
 
-    def process(self, key: Tuple[str, int], context: 'ProcessWindowFunction.Context',
-                elements: Iterable[Tuple[int, float, float]]) -> Iterable[Tuple[str, int, int, float, float]]:
+    def process(self, key: int, context: 'ProcessWindowFunction.Context',
+                elements: Iterable[Tuple[str, int, float, float]]) -> Iterable[Tuple[str, int, int, float, float]]:
         keyed_sorted_list = []
         for element in elements:
-            keyed_sorted_list.append((key[0], key[1], element[0], element[1], element[2]))
+            keyed_sorted_list.append((element[0], key, element[1], element[2], element[3]))
         yield from keyed_sorted_list
 
 
@@ -99,16 +105,6 @@ class Query2ProcessWindowFunction(ProcessWindowFunction):
         """
         Sorts aggregates elements by failures count, the add the key and returns
         """
-        """print(f'Processing window - {elements}')
-        keyed_sorted_list = []
-        if sum(1 for _ in elements) > 0:
-            sorted_elements = sorted(elements, key=lambda x: x[0])[:10]
-            for sorted_element in sorted_elements:
-                keyed_sorted_list.append((key[0], key[1], "%d %s" % (sorted_element[0], sorted_element[1])))
-        else:
-            keyed_sorted_list.append(
-                (key[0], key[1], f'Non sono occorsi fallimenti nel vault {key[1]} nel giorno {key[0]}'))
-        yield from keyed_sorted_list"""
         for el in elements:
             yield key[0], key[1], el[0], el[1]
 
@@ -117,7 +113,8 @@ class Query2SortingAggregationFunction(AggregateFunction):
     def create_accumulator(self) -> List[Tuple[str, int, int, str]]:
         return list()
 
-    def add(self, value: Tuple[str, int, int, str], accumulator: List[Tuple[str, int, int, str]]) -> List[Tuple[str, int, int, str]]:
+    def add(self, value: Tuple[str, int, int, str], accumulator: List[Tuple[str, int, int, str]]) -> List[
+        Tuple[str, int, int, str]]:
         accumulator.append(value)
         return accumulator
 
@@ -129,9 +126,10 @@ class Query2SortingAggregationFunction(AggregateFunction):
         res = []
         for el in accumulator:
             res.append((el[0], el[1], f'{el[2]} {el[3]}'))
+        min_ts = min(map(lambda x: x[0], res))
+        print(f'Min timestamp: {min_ts}')
         if len(accumulator) > 0:
-            return (res[0][0], res[0][1], res[0][2],
-                    res[1][1] if len(res) > 1 else 0, res[1][2] if len(res) > 1 else "",
+            return (min_ts, res[0][1], res[0][2], res[1][1] if len(res) > 1 else 0, res[1][2] if len(res) > 1 else "",
                     res[2][1] if len(res) > 2 else 0, res[2][2] if len(res) > 2 else "",
                     res[3][1] if len(res) > 3 else 0, res[3][2] if len(res) > 3 else "",
                     res[4][1] if len(res) > 4 else 0, res[4][2] if len(res) > 4 else "",
@@ -143,15 +141,17 @@ class Query2SortingAggregationFunction(AggregateFunction):
         else:
             return template
 
-    def merge(self, acc_a: List[Tuple[str, int, int, str]], acc_b: List[Tuple[str, int, int, str]]) -> List[Tuple[str, int, int, str]]:
+    def merge(self, acc_a: List[Tuple[str, int, int, str]], acc_b: List[Tuple[str, int, int, str]]) -> List[
+        Tuple[str, int, int, str]]:
         return acc_a + acc_b
 
 
-class Query2SortingProcessWindowFunction(ProcessWindowFunction):
-    def process(self, key: str, context: 'ProcessWindowFunction.Context', elements: Iterable[Tuple[
+class Query2SortingProcessWindowFunction(ProcessAllWindowFunction):
+
+    def process(self, context: 'ProcessWindowFunction.Context', elements: Iterable[Tuple[
         str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]]) -> \
-            Iterable[Tuple[
-                str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]]:
+    Iterable[
+        Tuple[str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str, int, str]]:
         yield from elements
 
 
@@ -183,10 +183,8 @@ class TDigestAggregateFunction(AggregateFunction):
         str, int, float, float, float, int, int]:
         print(f'results from accumulators: \t {accumulator}')
         new_digest = TDigest() + accumulator[3]
-        return (
-            accumulator[0], accumulator[1], new_digest.percentile(25), new_digest.percentile(50),
-            new_digest.percentile(75),
-            accumulator[2], accumulator[4])
+        return (accumulator[0], accumulator[1], new_digest.percentile(25), new_digest.percentile(50),
+                new_digest.percentile(75), accumulator[2], accumulator[4])
 
     def merge(self, acc_a: Tuple[str, int, int, object, int], acc_b: Tuple[str, int, int, object, int]) -> Tuple[
         str, int, int, object, int]:

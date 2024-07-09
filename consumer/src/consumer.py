@@ -2,8 +2,8 @@ import json
 import sys
 from datetime import datetime
 
-from pyflink.common import Configuration
-from pyflink.common import Row, Types
+from pyflink.common import Configuration, Row
+from pyflink.common import Types
 from pyflink.common import WatermarkStrategy
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.watermark_strategy import TimestampAssigner
@@ -12,6 +12,8 @@ from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer, FlinkKafkaPr
 from pyflink.datastream.formats.json import JsonRowSerializationSchema
 from pyflink.datastream.functions import MapFunction
 
+from queries.custom_maps import query2_output_map_function, TimeMap, query1_output_map_function, \
+    query3_output_map_function
 from queries.queries import query_1, query_2, query_3
 
 
@@ -41,23 +43,14 @@ class MyTimestampAssigner(TimestampAssigner):
         return int(ts) * 1000
 
 
-# Define a simple MapFunction to convert data to string format
-class MapToString(MapFunction):
-    def map(self, value):
-        r = ""
-        for i in len(value):
-            r + f"{value[i]},"
-        return r
-
-
-def main(query):
-    global side_output_stream, res
+def main(query_name):
+    global side_output_stream, res, mapped_data1, mapped_data2, mapped_data3, serialization_schema, timing1, timing2, timing3
     config = Configuration()
     config.set_string("jobmanager.rpc.address", "jobmanager")  # Modifica con l'hostname del JobManager
     config.set_integer("jobmanager.rpc.port", 6123)  # Porta del JobManager
 
     env = StreamExecutionEnvironment.get_execution_environment(config)
-    env.set_parallelism(2)
+    env.set_parallelism(1)
     # env.add_jars("./lib/flink-sql-connector-kafka-1.17.1.jar")
 
     # Sourcing
@@ -84,7 +77,7 @@ def main(query):
                                                     ]))
 
     # Print the parsed tuples
-    if query == 'q1':
+    if query_name == 'q1':
         result_columns = ["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"]
 
         serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(result_columns,
@@ -98,19 +91,26 @@ def main(query):
         res2 = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=3)
         res3 = query_1(parsed_stream, watermark_strategy=watermark_strategy, days=23)
 
-        mapped_data1 = res1.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
-                                output_type=Types.ROW_NAMED(result_columns,
-                                                            [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+        mapped_output_type = Types.ROW_NAMED(result_columns,
+                                             [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()])
+        mapped_data1 = res1.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]), output_type=mapped_output_type)
 
-        mapped_data2 = res2.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
-                               output_type=Types.ROW_NAMED(result_columns,
-                                                           [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+        mapped_data2 = res2.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]), output_type=mapped_output_type)
 
-        mapped_data3 = res3.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]),
-                               output_type=Types.ROW_NAMED(result_columns,
-                                                           [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT()]))
+        mapped_data3 = res3.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4]), output_type=mapped_output_type)
 
-    if query == 'q2':
+        # Retrieving timing metrics
+        """timing1 = res1.map(func=TimeMap(), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.DOUBLE(), Types.DOUBLE()]))
+        timing2 = res2.map(func=TimeMap(), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.DOUBLE(), Types.DOUBLE()]))
+        timing3 = res3.map(func=TimeMap(), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.DOUBLE(), Types.DOUBLE()]))"""
+
+    if query_name == 'q2':
         fields = Types.ROW_NAMED(["timestamp", "vault id1", "failures1 ([modelA, serialA, ...])", "vault id2",
                                   "failures2 ([modelA, serialA, ...])", "vault id3",
                                   "failures3 ([modelA, serialA, ...])", "vault id4",
@@ -131,17 +131,11 @@ def main(query):
         res2 = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=3)
         res3 = query_2(parsed_stream, watermark_strategy=watermark_strategy, days=23)
 
-        mapped_data1 = res1.map(
-            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12], i[13],
-                               i[14], i[15], i[16], i[17], i[18], i[19], i[20]), output_type=fields)
-        mapped_data2 = res2.map(
-            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12], i[13],
-                               i[14], i[15], i[16], i[17], i[18], i[19], i[20]), output_type=fields)
-        mapped_data3 = res3.map(
-            func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7], i[8], i[9], i[10], i[11], i[12], i[13],
-                               i[14], i[15], i[16], i[17], i[18], i[19], i[20]), output_type=fields)
+        mapped_data1 = res1.map(query2_output_map_function, output_type=fields)
+        mapped_data2 = res2.map(query2_output_map_function, output_type=fields)
+        mapped_data3 = res3.map(query2_output_map_function, output_type=fields)
 
-    if query == 'q3':
+    if query_name == 'q3':
         result_columns = ["ts", "vault_id", "min", "25perc", "50perc", "75perc", "max", "count"]
 
         serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(result_columns,
@@ -158,43 +152,50 @@ def main(query):
         res2 = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=3)
         res3 = query_3(parsed_stream, watermark_strategy=watermark_strategy, days=23)
 
-        mapped_data1 = res1.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
-                            output_type=Types.ROW_NAMED(result_columns,
-                                                        [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
-                                                         Types.FLOAT(), Types.INT(), Types.INT()]))
+        mapped_output_type = Types.ROW_NAMED(result_columns,
+                                             [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
+                                              Types.FLOAT(), Types.INT(), Types.INT()])
+        mapped_data1 = res1.map(func=query3_output_map_function, output_type=mapped_output_type)
 
-        mapped_data2 = res2.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
-                              output_type=Types.ROW_NAMED(result_columns,
-                                                          [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
-                                                           Types.FLOAT(), Types.INT(), Types.INT()]))
+        mapped_data2 = res2.map(func=query3_output_map_function, output_type=mapped_output_type)
 
-        mapped_data3 = res3.map(func=lambda i: Row(i[0], i[1], i[2], i[3], i[4], i[5], i[6], i[7]),
-                              output_type=Types.ROW_NAMED(result_columns,
-                                                          [Types.STRING(), Types.INT(), Types.INT(), Types.FLOAT(), Types.FLOAT(),
-                                                           Types.FLOAT(), Types.INT(), Types.INT()]))
+        mapped_data3 = res3.map(func=query3_output_map_function, output_type=mapped_output_type)
+
+        # Retrieving timing metrics
+        timing1 = res1.map(func=TimeMap(), output_type=Types.TUPLE([Types.DOUBLE(), Types.DOUBLE()]))
+        timing2 = res2.map(func=TimeMap(), output_type=Types.TUPLE([Types.DOUBLE(), Types.DOUBLE()]))
+        timing3 = res3.map(func=TimeMap(), output_type=Types.TUPLE([Types.DOUBLE(), Types.DOUBLE()]))
 
     # Sinking
-    kafka_producer1 = FlinkKafkaProducer(topic=f'{query}+"_1"', serialization_schema=serialization_schema,
-        producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
-                         'security.protocol': 'PLAINTEXT'})
+    producer_config = {'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
+                       'security.protocol': 'PLAINTEXT'}
+
+    kafka_producer1 = FlinkKafkaProducer(topic=f"{query_name}_1", serialization_schema=serialization_schema,
+                                         producer_config=producer_config)
+    kafka_metrics1 = FlinkKafkaProducer(topic=f"m_{query_name}_1", serialization_schema=serialization_schema,
+                                        producer_config=producer_config)
+
     # Add the sink to the data stream
     mapped_data1.add_sink(kafka_producer1)
+    #timing1.add_sink(kafka_metrics1)
 
-
-    kafka_producer2 = FlinkKafkaProducer(topic=f'{query}+"_3"', serialization_schema=serialization_schema,
-                                        producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
-                                                         'security.protocol': 'PLAINTEXT'})
+    kafka_producer2 = FlinkKafkaProducer(topic=f'{query_name}_3', serialization_schema=serialization_schema,
+                                         producer_config=producer_config)
+    kafka_metrics2 = FlinkKafkaProducer(topic=f'm_{query_name}_3', serialization_schema=serialization_schema,
+                                        producer_config=producer_config)
     # Add the sink to the data stream
     mapped_data2.add_sink(kafka_producer2)
+    #timing2.add_sink(kafka_metrics2)
 
-
-    kafka_producer3 = FlinkKafkaProducer(topic=f'{query}+"_all"', serialization_schema=serialization_schema,
-                                        producer_config={'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
-                                                         'security.protocol': 'PLAINTEXT'})
+    kafka_producer3 = FlinkKafkaProducer(topic=f'{query_name}_all', serialization_schema=serialization_schema,
+                                         producer_config=producer_config)
+    kafka_metrics3 = FlinkKafkaProducer(topic=f'm_{query_name}_all', serialization_schema=serialization_schema,
+                                        producer_config=producer_config)
     # Add the sink to the data stream
     mapped_data3.add_sink(kafka_producer3)
+    #timing3.add_sink(kafka_metrics3)
 
-    env.execute("Query "+query)
+    env.execute("Query " + query_name)
 
 
 if __name__ == '__main__':
