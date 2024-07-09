@@ -79,17 +79,11 @@ def main(query_name):
     # Print the parsed tuples
     if query_name == 'q1':
         result_columns = ["timestamp", "vault_id", "count", "mean_s194", "stddev_s194"]
-        timing_result_columns = ["throughput", "latency"]
 
         serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(result_columns,
                                                                                                    [Types.STRING(),
                                                                                                     Types.INT(),
                                                                                                     Types.INT(),
-                                                                                                    Types.FLOAT(),
-                                                                                                    Types.FLOAT()])).build()
-
-        timing_serialization_schema = JsonRowSerializationSchema.builder().with_type_info(Types.ROW_NAMED(timing_result_columns,
-                                                                                                   [
                                                                                                     Types.FLOAT(),
                                                                                                     Types.FLOAT()])).build()
 
@@ -145,6 +139,21 @@ def main(query_name):
         mapped_data2 = res2.map(query2_output_map_function, output_type=fields)
         mapped_data3 = res3.map(query2_output_map_function, output_type=fields)
 
+        # Retrieving timing metrics
+        t1 = res1.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+        t2 = res2.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+        t3 = res3.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+
+        timing1 = t1.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.FLOAT(), Types.FLOAT()]))
+        timing2 = t2.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.FLOAT(), Types.FLOAT()]))
+        timing3 = t3.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.FLOAT(), Types.FLOAT()]))
+
     if query_name == 'q3':
         result_columns = ["ts", "vault_id", "min", "25perc", "50perc", "75perc", "max", "count"]
 
@@ -172,11 +181,27 @@ def main(query_name):
         mapped_data3 = res3.map(func=query3_output_map_function, output_type=mapped_output_type)
 
         # Retrieving timing metrics
-        timing1 = res1.map(func=TimeMap(), output_type=Types.TUPLE([Types.DOUBLE(), Types.DOUBLE()]))
-        timing2 = res2.map(func=TimeMap(), output_type=Types.TUPLE([Types.DOUBLE(), Types.DOUBLE()]))
-        timing3 = res3.map(func=TimeMap(), output_type=Types.TUPLE([Types.DOUBLE(), Types.DOUBLE()]))
+        t1 = res1.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+        t2 = res2.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+        t3 = res3.map(func=TimeMap(), output_type=Types.TUPLE([Types.FLOAT(), Types.FLOAT()]))
+
+        timing1 = t1.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.FLOAT(), Types.FLOAT()]))
+        timing2 = t2.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.FLOAT(), Types.FLOAT()]))
+        timing3 = t3.map(func=lambda i: Row(i[0], i[1]), output_type=Types.ROW_NAMED(
+            ['throughput', 'latency'],
+            [Types.FLOAT(), Types.FLOAT()]))
 
     # Sinking
+    timing_result_columns = ["throughput", "latency"]
+    timing_serialization_schema = JsonRowSerializationSchema.builder().with_type_info(
+        Types.ROW_NAMED(timing_result_columns,
+                        [
+                            Types.FLOAT(),
+                            Types.FLOAT()])).build()
     producer_config = {'bootstrap.servers': 'kafka:9092', 'group.id': 'sabd_producers',
                        'security.protocol': 'PLAINTEXT'}
 
